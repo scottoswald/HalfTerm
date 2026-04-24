@@ -4,7 +4,7 @@ function App() {
   return (
     <div className="container">
       <h1 className="logo">Halfterm</h1>
-      <p className="tagline">Find things to do with your kids</p>
+      <p className="tagline">Find fun things for families to do</p>
 
       <div className="search-box">
         <div className="field">
