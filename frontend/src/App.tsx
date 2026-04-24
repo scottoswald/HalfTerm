@@ -12,7 +12,7 @@ function App() {
   return (
     <div className="container">
       <h1 className="logo">Halfterm</h1>
-      <p className="tagline">Find things to do with your kids</p>
+      <p className="tagline">Find fun things for families to do</p>
 
       {/* The search form - three dropdowns and a search button */}
       <div className="search-box">
