@@ -1,6 +1,8 @@
+import { useNavigate } from 'react-router-dom'
 import './App.css'
 
 function App() {
+  const navigate = useNavigate()
   return (
     <div className="container">
       <h1 className="logo">Halfterm</h1>
@@ -28,7 +30,7 @@ function App() {
           </select>
         </div>
 
-        <button className="search-btn">Search</button>
+        <button className="search-btn" onClick={() => navigate('/results')}>Search</button>
       </div>
     </div>
   )
