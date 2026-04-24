@@ -4,6 +4,7 @@ function Results() {
       <h1 className="logo">Halfterm</h1>
       <p className="tagline">Here's what we found for you</p>
 
+      {/* Results will be dynamically populated by the AI agent response */}
       <div className="results-box">
         <p className="placeholder">Your results will appear here...</p>
       </div>
