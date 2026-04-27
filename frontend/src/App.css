@@ -108,3 +108,16 @@ body {
   text-align: center;
   padding: 40px 0;
 }
+
+.result-text {
+  white-space: pre-wrap;
+  line-height: 1.7;
+  font-size: 0.95rem;
+  color: #1a1a1a;
+}
+
+.back-btn {
+  margin-top: 24px;
+  max-width: 420px;
+  width: 100%;
+}
