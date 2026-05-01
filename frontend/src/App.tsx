@@ -40,8 +40,14 @@ function App() {
       navigate('/results', { state: { result: data.result } })
 
     } catch (error) {
-      // If something goes wrong, log it to the console for debugging
+      // Log the error for debugging
       console.error('Search failed:', error)
+  
+      // Navigate to results page with an error message
+      // This way the user sees something helpful rather than a blank page
+      navigate('/results', { 
+        state: { result: 'Sorry, something went wrong with your search. Please try again.' } 
+      })
     } finally {
       // Whether it succeeded or failed, turn off the loading state
       setLoading(false)
