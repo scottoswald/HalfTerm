@@ -113,3 +113,19 @@ def test_search_endpoint_called_with_correct_arguments():
         # exactly once with exactly these three arguments
         # This confirms main.py is passing the right data to the agent
         mock_agent.assert_called_once_with("Museum", "London", "today")
+
+# Having a go at writing a test myself...
+def test_ConnectionError_runs_as_expected():
+    with patch('main.run_agent') as mock_agent:
+        mock_agent.side_effect = ConnectionError("Something went wrong")
+
+        response = client.post("/search", json={
+            "activity": "Museum",
+            "location": "London",
+            "when": "today"
+        })
+
+        data = response.json()
+
+        assert response.status_code == 503
+        assert data["detail"] == "Could not connect to external services. Please try again shortly."
