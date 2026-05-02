@@ -3,28 +3,44 @@ import { useNavigate } from 'react-router-dom'
 import './App.css'
 
 function App() {
-  // useNavigate lets us programmatically navigate to different pages
   const navigate = useNavigate()
 
-  // useState tracks whether the search is in progress
-  // We use this to disable the button while waiting for the backend
+  // loading tracks whether a search is in progress
   const [loading, setLoading] = useState(false)
 
+  // loadingMessage cycles through different messages while the agent works
+  // This gives the user a sense of progress rather than just "Searching..."
+  const [loadingMessage, setLoadingMessage] = useState('')
+
+  // An array of messages to cycle through while the search runs
+  // Each message hints at what the agent is doing behind the scenes
+  const loadingMessages = [
+    'Searching for activities...',
+    'Checking what\'s on today...',
+    'Finding the best museums...',
+    'Almost there...',
+  ]
+
   const handleSearch = async () => {
-    // Set loading to true so the button shows "Searching..."
     setLoading(true)
 
+    // Start cycling through loading messages every 2 seconds
+    // setInterval runs a function repeatedly at a set interval
+    // It returns an ID we can use to stop it later
+    let messageIndex = 0
+    setLoadingMessage(loadingMessages[0])
+
+    const messageInterval = setInterval(() => {
+      messageIndex = (messageIndex + 1) % loadingMessages.length
+      setLoadingMessage(loadingMessages[messageIndex])
+    }, 2000)
+
     try {
-      // Send a POST request to our FastAPI backend
-      // fetch() is the browser's built in way of making HTTP requests
       const response = await fetch('http://localhost:8000/search', {
         method: 'POST',
-        // Tell the backend we're sending JSON
         headers: {
           'Content-Type': 'application/json',
         },
-        // The body is the data we're sending — must match SearchRequest in main.py
-        // JSON.stringify converts the JavaScript object into a JSON string
         body: JSON.stringify({
           activity: 'Museum',
           location: 'London',
@@ -32,24 +48,20 @@ function App() {
         }),
       })
 
-      // Parse the JSON response from the backend into a JavaScript object
       const data = await response.json()
 
-      // Navigate to the results page, passing the result as state
-      // This is how we pass data between pages in React Router
       navigate('/results', { state: { result: data.result } })
 
     } catch (error) {
-      // Log the error for debugging
       console.error('Search failed:', error)
-  
-      // Navigate to results page with an error message
-      // This way the user sees something helpful rather than a blank page
-      navigate('/results', { 
-        state: { result: 'Sorry, something went wrong with your search. Please try again.' } 
+      navigate('/results', {
+        state: { result: 'Sorry, something went wrong with your search. Please try again.' }
       })
     } finally {
-      // Whether it succeeded or failed, turn off the loading state
+      // Always clean up the interval when the search finishes
+      // If we don't do this the messages would keep cycling forever
+      // clearInterval stops the setInterval we started above
+      clearInterval(messageInterval)
       setLoading(false)
     }
   }
@@ -85,13 +97,14 @@ function App() {
           </select>
         </div>
 
-        {/* Button shows "Searching..." while waiting for the backend response */}
+        {/* Button is disabled while loading to prevent double clicks */}
         <button
           className="search-btn"
           onClick={handleSearch}
           disabled={loading}
         >
-          {loading ? 'Searching...' : 'Search'}
+          {/* Show cycling loading message while searching, otherwise show Search */}
+          {loading ? loadingMessage : 'Search'}
         </button>
       </div>
     </div>

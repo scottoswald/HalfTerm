@@ -121,3 +121,15 @@ body {
   max-width: 420px;
   width: 100%;
 }
+
+/* Fades the button text in and out while loading */
+/* This gives a subtle visual cue that something is happening */
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.search-btn:disabled {
+  animation: pulse 1.5s ease-in-out infinite;
+  cursor: not-allowed;
+}
