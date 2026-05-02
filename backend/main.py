@@ -17,10 +17,14 @@ logger = logging.getLogger(__name__)
 # Creates the actual API application
 app = FastAPI()
 
-# CORS — allows our frontend (localhost:5173) to talk to our backend (localhost:8000)
+# CORS — allows our frontend to talk to our backend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    # Allow both local development and the deployed frontend
+    allow_origins=[
+        "http://localhost:5173",
+        "https://halfterm-frontend.up.railway.app",  # we'll update this with the real URL shortly
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

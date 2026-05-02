@@ -36,7 +36,10 @@ function App() {
     }, 2000)
 
     try {
-      const response = await fetch('http://localhost:8000/search', {
+      
+      const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000'
+      
+      const response = await fetch(`${backendUrl}/search`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
