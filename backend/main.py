@@ -22,7 +22,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:5173",
-        "https://earnest-courage-production.up.railway.app",
+        "https://halfterm.up.railway.app",
     ],
     allow_credentials=True,
     allow_methods=["*"],

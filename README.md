@@ -100,4 +100,9 @@ npx vitest run
 
 ## Status
 
-MVP 1.1 complete. See CHANGELOG.md for full version history.
+MVP 1.1 complete and deployed. See [CHANGELOG.md](CHANGELOG.md) for full version history.
+
+**Live URLs:**
+- Frontend: https://halfterm.up.railway.app
+- Backend API: https://halfterm-production.up.railway.app
+- API Docs: https://halfterm-production.up.railway.app/docs
