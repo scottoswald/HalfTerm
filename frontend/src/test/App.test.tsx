@@ -6,12 +6,12 @@ import App from '../App'
 // Mock the fetch function so tests don't make real API calls
 // vi.fn() creates a fake function that we can control in tests
 // This means tests run instantly without needing the backend running
-global.fetch = vi.fn()
+vi.stubGlobal('fetch', vi.fn())
 
 // Helper function that sets up a fake successful API response
 // We reuse this across multiple tests so it makes sense to define it once
 const mockSuccessfulSearch = () => {
-  (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+  (fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
     json: async () => ({ result: 'Some museum activities for kids' }),
   })
 }
