@@ -10,6 +10,12 @@ COPY package.json package-lock.json ./
 # Install exact versions from lockfile
 RUN npm ci
 
+# Accept VITE_BACKEND_URL as a build argument from docker-compose
+# Empty string means use nginx reverse proxy
+# Any other value means use that URL directly
+ARG VITE_BACKEND_URL
+ENV VITE_BACKEND_URL=$VITE_BACKEND_URL
+
 # Copy the rest of the frontend code
 COPY . .
 
