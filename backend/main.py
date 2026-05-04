@@ -20,9 +20,14 @@ app = FastAPI()
 # CORS — allows our frontend to talk to our backend
 app.add_middleware(
     CORSMiddleware,
+    # Allow requests from all our frontend environments:
+    # - Local Vite development server
+    # - Local Docker frontend container
+    # - Deployed Railway frontend
     allow_origins=[
-        "http://localhost:5173",
-        "https://halfterm.up.railway.app",
+        "http://localhost:5173",      # Local Vite dev server
+        "http://localhost:3000",      # Local Docker frontend container
+        "https://halfterm.up.railway.app",  # Deployed Railway frontend
     ],
     allow_credentials=True,
     allow_methods=["*"],

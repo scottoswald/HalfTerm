@@ -1,0 +1,11 @@
+# Don't copy these into the Docker image
+# venv — we install dependencies fresh inside the container
+venv/
+# Python cache files
+__pycache__/
+*.pyc
+*.pyo
+# Environment variables — never copy secrets into an image
+.env
+# Tests — not needed in production
+tests/

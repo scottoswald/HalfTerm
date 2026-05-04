@@ -94,9 +94,15 @@ function App() {
     }, 2000)
 
     try {
+      // In Docker, API calls go through nginx reverse proxy at /api/
+      // Nginx then forwards them to the backend container internally
+      // Locally with Vite, we still hit localhost:8000 directly
       const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000'
+      const apiUrl = backendUrl === 'http://localhost:8000' 
+        ? 'http://localhost:8000' 
+        : '/api'
 
-      const response = await fetch(`${backendUrl}/search`, {
+      const response = await fetch(`${apiUrl}/search`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         // Pass all five search parameters to the backend

@@ -1,0 +1,42 @@
+# Docker Compose file — wires the frontend and backend containers together
+# Allows you to run the entire app with one command: docker-compose up --build
+# Stop everything with: docker-compose down
+
+services:
+
+  # ---- BACKEND SERVICE ----
+  backend:
+    # Build the backend image from the Dockerfile in the backend folder
+    build: ./backend
+    # Name the container for easy identification in logs and Docker Desktop
+    container_name: halfterm-backend
+    # Map port 8000 on your Mac to port 8000 inside the container
+    # Format is host:container
+    ports:
+      - "8000:8000"
+    # Load environment variables from the backend .env file
+    # This is how API keys get into the container without being baked into the image
+    env_file:
+      - ./backend/.env
+    # Restart the container automatically if it crashes unexpectedly
+    restart: on-failure
+
+  # ---- FRONTEND SERVICE ----
+  frontend:
+    # Build configuration for the frontend
+    build:
+      # context tells Docker Compose where to find the Dockerfile
+      context: ./frontend
+    # Name the container for easy identification
+    container_name: halfterm-frontend
+    # Map port 3000 on your Mac to port 80 inside the nginx container
+    # nginx serves on port 80 by default
+    # We use port 3000 on the host to avoid conflicts with other services
+    ports:
+      - "3000:80"
+    # depends_on ensures backend starts before frontend
+    # Docker Compose will wait for backend to be running first
+    depends_on:
+      - backend
+    # Restart the container automatically if it crashes
+    restart: on-failure
