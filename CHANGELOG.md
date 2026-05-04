@@ -52,3 +52,10 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 - All API keys stored safely in .env
 - Eventbrite API key obtained (not yet wired up)
 - 4 initial backend tests with pytest
+
+## [2.0.1] - 2026-05-05
+
+### Fixed
+- Docker nginx reverse proxy now correctly routes API calls from frontend to backend
+- Simplified VITE_BACKEND_URL logic — empty string triggers proxy, unset uses localhost
+- CORS updated to allow localhost:3000 for Docker development
