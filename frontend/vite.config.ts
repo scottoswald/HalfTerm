@@ -1,13 +1,11 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
-import tailwindcss from '@tailwindcss/vite'
 
 // Vite configuration file
 // Plugins: React for JSX support, Tailwind for CSS processing
 export default defineConfig({
   plugins: [
-    react(),
-    tailwindcss(), // Processes Tailwind classes at build time
+    react() // Handles JSX and React
   ],
   test: {
     // jsdom simulates a browser environment for React component tests
