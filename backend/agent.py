@@ -229,11 +229,24 @@ agent_executor = create_react_agent(llm, tools)
 
 # ---- THE RUN FUNCTION ----
 def run_agent(activity: str, location: str, when: str) -> str:
-    # Build a natural language query from the three search parameters
-    query = f"Find {activity} activities for kids in {location} {when}. Search for both events and venue information."
+    # Build a detailed natural language query from all search parameters
+    # The more context we give the agent, the better it can filter results
+    query = f"""
+    Find {activity} activities for kids in {location} {when}.
     
-    # Invoke the agent with the query
+    Please follow these instructions carefully:
+    - Search for both live events and venue information
+    - Filter results to match the specified criteria in: {when}
+    - For age range: only suggest activities suitable for the specified age group
+    - For budget: only suggest activities within the specified cost range
+    - Present results in a clear, friendly format for families
+    - For each result include: name, location, cost if known, and why it's good for kids
+    - If you cannot find results matching all criteria, say so clearly and suggest alternatives
+    - Always include booking links or website URLs where available
+    """
+
+    # Invoke the agent with the detailed query
     result = agent_executor.invoke({"messages": [("human", query)]})
-    
+
     # Return the last message which is Claude's final formatted response
     return result["messages"][-1].content
