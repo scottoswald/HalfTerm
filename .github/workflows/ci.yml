@@ -4,6 +4,11 @@
 
 name: CI/CD Pipeline
 
+# Tell GitHub Actions to use Node.js 24 now
+# This prevents deprecation warnings about Node.js 20
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 # Define when this workflow runs
 on:
   push:
