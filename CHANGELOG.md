@@ -3,6 +3,39 @@
 All notable changes to Halfterm will be documented in this file.
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [2.0.2] - 2026-05-05
+
+### Added
+- Tailwind CSS v3 and DaisyUI v4 installed and configured
+- Custom Halfterm orange brand theme
+- Activity grid with multi-select (8 activities with emojis)
+- UK city locations dropdown (14 cities)
+- Date options (Today, Tomorrow, This Weekend, This Week, Next Week)
+- Age range filter (0-3, 4-7, 8-12, 13+, All Ages)
+- Budget filter (Free, Under £10, £10-£25, £25-£50, £50+)
+- Results page styled with Daisy UI and Tailwind typography
+- Markdown tables rendering with remark-gfm
+- Google Places now uses dynamic city coordinates
+- Agent prompt improved to handle age and budget filters
+- Docker containerisation for frontend and backend
+- Multi-stage Docker build with nginx reverse proxy
+- Docker Compose to run entire app with one command
+- GitHub Actions CI/CD pipeline — runs on every push to main
+- Frontend tests — 12 tests passing
+- Backend tests — 8 tests passing
+
+### Fixed
+- Google Places hardcoded London coordinates replaced with dynamic city lookup
+- CORS updated to allow localhost:3000 for Docker development
+- Docker networking fixed using nginx reverse proxy
+
+## [2.0.1] - 2026-05-05
+
+### Fixed
+- Docker nginx reverse proxy now correctly routes API calls from frontend to backend
+- Simplified VITE_BACKEND_URL logic — empty string triggers proxy, unset uses localhost
+- CORS updated to allow localhost:3000 for Docker development
+
 ## [1.1.1] - 2026-05-03
 
 ### Added
@@ -53,9 +86,3 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 - Eventbrite API key obtained (not yet wired up)
 - 4 initial backend tests with pytest
 
-## [2.0.1] - 2026-05-05
-
-### Fixed
-- Docker nginx reverse proxy now correctly routes API calls from frontend to backend
-- Simplified VITE_BACKEND_URL logic — empty string triggers proxy, unset uses localhost
-- CORS updated to allow localhost:3000 for Docker development
