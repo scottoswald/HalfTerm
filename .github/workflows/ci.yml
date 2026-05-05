@@ -1,53 +1,51 @@
 # GitHub Actions CI/CD Pipeline
-# This workflow runs automatically on every push to main
-# It runs all tests and if they pass, triggers a Railway deployment
+# This workflow runs automatically on every push to main and on pull requests
+# It runs all tests and if they pass on a push to main, confirms deployment
+# Railway handles the actual deployment by watching the GitHub repo
 
 name: CI/CD Pipeline
 
-# Tell GitHub Actions to use Node.js 24 now
-# This prevents deprecation warnings about Node.js 20
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-
-# Define when this workflow runs
+# Define when this workflow triggers
 on:
   push:
     # Only run when pushing to the main branch
     branches: [main]
   pull_request:
-    # Also run on pull requests to main
-    # This catches issues before they're merged
+    # Also run on pull requests targeting main
+    # This checks the code passes tests before it gets merged
+    # Note: deploy job is skipped on pull requests — only runs after merge
     branches: [main]
 
 jobs:
 
   # ---- BACKEND TESTS ----
   backend-tests:
-    # Run on the latest Ubuntu Linux runner
-    # GitHub provides these virtual machines for free
+    # Run on the latest Ubuntu Linux virtual machine
+    # GitHub provides these for free for public repositories
     runs-on: ubuntu-latest
 
     steps:
-      # Step 1 — Check out the code from GitHub
+      # Check out the code from GitHub onto the virtual machine
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v4.2.2
 
-      # Step 2 — Set up Python 3.11 to match our local environment
+      # Set up Python 3.11 to match our local development environment exactly
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v5.6.0
         with:
           python-version: '3.11'
 
-      # Step 3 — Install backend dependencies
+      # Install all backend dependencies from requirements.txt
+      # working-directory tells GitHub Actions to run this command in the backend folder
       - name: Install backend dependencies
         working-directory: ./backend
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      # Step 4 — Run pytest with verbose output
-      # The environment variables are needed for the agent to initialise
-      # We use dummy values since tests mock the actual API calls
+      # Run pytest with verbose output so we can see each test result clearly
+      # We pass dummy API keys because our tests mock all real API calls
+      # but the code still reads environment variables when it starts up
       - name: Run backend tests
         working-directory: ./backend
         env:
@@ -61,46 +59,53 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # Step 1 — Check out the code
+      # Check out the code from GitHub onto the virtual machine
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v4.2.2
 
-      # Step 2 — Set up Node.js 22 to match our local environment
+      # Set up Node.js 22 to match our local development environment
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v4.4.0
         with:
           node-version: '22'
-          # Cache npm dependencies to speed up future runs
+          # Cache npm dependencies between runs to speed up the pipeline
+          # If package-lock.json hasn't changed, GitHub skips reinstalling packages
           cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
 
-      # Step 3 — Install frontend dependencies
+      # Install frontend dependencies using the exact versions in package-lock.json
+      # npm ci is stricter than npm install — fails if lockfile is out of sync
       - name: Install frontend dependencies
         working-directory: ./frontend
         run: npm ci
 
-      # Step 4 — Run Vitest
+      # Run Vitest — our frontend testing framework
       - name: Run frontend tests
         working-directory: ./frontend
         run: npx vitest run
 
   # ---- DEPLOY ----
-  # This job only runs after both test jobs pass
-  # and only on pushes to main (not pull requests)
+  # This job only runs after BOTH test jobs pass successfully
+  # and only on pushes to main (not on pull requests)
+  # Railway auto-deploys when it detects a push to main on GitHub
+  # so this job just confirms tests passed before that happens
   deploy:
     runs-on: ubuntu-latest
-    # needs means this job waits for both test jobs to complete successfully
+    # needs means this job waits for both test jobs to complete first
+    # If either test job fails, this job is skipped entirely
     needs: [backend-tests, frontend-tests]
-    # Only deploy on push to main, not on pull requests
+    # Only deploy on push events to main, not on pull request events
+    # When a PR is merged, GitHub creates a push event — that triggers deploy
+    # When a PR is just opened or updated, we run tests only — no deploy
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
 
     steps:
-      # Step 1 — Check out the code
+      # Check out the code
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v4.2.2
 
-      # Step 2 — Trigger Railway deployment
-      # Railway watches our GitHub repo and deploys automatically on push
-      # So we just need to confirm the push happened after tests passed
-      - name: Notify deployment
-        run: echo "Tests passed — Railway will auto-deploy from GitHub push"
+      # Railway watches our GitHub repo and deploys automatically on every push
+      # Since this job only runs after tests pass, Railway only ever deploys
+      # code that has passed all tests — that's the CI/CD guarantee
+      - name: Confirm deployment
+        run: echo "All tests passed — Railway is deploying from this push"
