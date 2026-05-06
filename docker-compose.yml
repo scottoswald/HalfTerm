@@ -27,6 +27,9 @@ services:
     build:
       # context tells Docker Compose where to find the Dockerfile
       context: ./frontend
+      # Use Dockerfile.local — renamed so Railway ignores it
+      # Railway uses its own Railpack build system instead
+      dockerfile: Dockerfile.local
       # Pass empty string as VITE_BACKEND_URL to tell the frontend
       # to use the nginx reverse proxy instead of a direct backend URL
       args:
