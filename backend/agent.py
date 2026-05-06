@@ -1,7 +1,7 @@
 from dotenv import load_dotenv
 from langchain_anthropic import ChatAnthropic
 from langgraph.prebuilt import create_react_agent
-from tools import search_ticketmaster_events, search_google_places
+from tools import search_ticketmaster_events, search_google_places, search_eventbrite_events
 import os
 
 # Load environment variables from .env file before anything else runs
@@ -21,8 +21,8 @@ llm = ChatAnthropic(
 # Tools are now in their own files under backend/tools/
 # search_ticketmaster_events — finds live family events via Ticketmaster API
 # search_google_places — finds venue information via Google Places API
-# Importing them here keeps agent.py clean and focused on wiring things together
-tools = [search_ticketmaster_events, search_google_places]
+# search_eventbrite_events — finds additional family events via Eventbrite API
+tools = [search_ticketmaster_events, search_google_places, search_eventbrite_events]
 
 # ---- THE AGENT ----
 # create_react_agent wires together the LLM and tools
