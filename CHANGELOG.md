@@ -3,6 +3,21 @@
 All notable changes to Halfterm will be documented in this file.
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [2.1.1] - 2026-05-07
+
+### Added
+- AWS ECR repositories for frontend and backend Docker images
+- AWS ECS cluster (halfterm) in eu-west-2 (London)
+- ECS Fargate task definitions for frontend and backend
+- ECS services running both containers on AWS
+- CloudWatch log groups for container monitoring
+- IAM ecsTaskExecutionRole for ECS permissions
+- VPC security group with ports 8000 and 80 open
+
+### Fixed
+- Docker images rebuilt for linux/amd64 platform (Mac M1 compatibility)
+- nginx.conf updated to use backend public IP for AWS ECS deployment
+
 ## [2.1.0] - 2026-05-06
 
 ### Added
