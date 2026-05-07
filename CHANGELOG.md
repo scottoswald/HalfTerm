@@ -3,6 +3,17 @@
 All notable changes to Halfterm will be documented in this file.
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [2.1.0] - 2026-05-06
+
+### Added
+- Eventbrite API integration as a third event data source
+- Tools refactored into own files (backend/tools/)
+- tools/__init__.py exposes all tools cleanly
+- GitHub Actions CI/CD pipeline
+
+### Changed  
+- agent.py now imports tools from tools package rather than defining them inline
+
 ## [2.0.2] - 2026-05-05
 
 ### Added

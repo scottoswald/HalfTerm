@@ -11,3 +11,7 @@ __pycache__/
 
 # Mac
 .DS_Store
+
+# AWS task definitions contain API keys — never commit these
+backend-task-def.json
+frontend-task-def.json
