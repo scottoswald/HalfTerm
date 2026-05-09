@@ -36,11 +36,20 @@ app.add_middleware(
 
 # ---- REQUEST MODEL ----
 # Defines the expected shape of the search request from the frontend
-# FastAPI automatically validates incoming requests against this model
+# Each search parameter is now its own field rather than bundled into one string
+# This is more professional, easier to validate, and clearer to read
 class SearchRequest(BaseModel):
-    activity: str
+    # List of activities because users can select multiple
+    # e.g. ["Museums", "Outdoor Activities"]
+    activities: list[str]
+    # The city to search in
     location: str
-    when: str
+    # The date range e.g. "today", "this weekend"
+    date: str
+    # Age range of the children e.g. "4-7", "all ages"
+    age_range: str
+    # Budget range e.g. "free", "under £10"
+    cost_range: str
 
 # ---- ROUTES ----
 
@@ -49,23 +58,35 @@ class SearchRequest(BaseModel):
 def read_root():
     return {"message": "Halfterm backend is running"}
 
-# Search route — receives search parameters and runs the AI agent
+# Search route — receives structured search parameters and runs the AI agent
+# @app.post means it expects a POST request — we're sending data to the server
+# SearchRequest tells FastAPI to validate the request body against our model
 @app.post("/search")
 def search(request: SearchRequest):
     try:
         # Log the incoming search so we can see what's being searched in the terminal
-        logger.info(f"Search request: {request.activity} in {request.location} on {request.when}")
+        # This is useful for debugging and monitoring usage patterns
+        logger.info(f"Search request: {request.activities} in {request.location} on {request.date} for ages {request.age_range} budget {request.cost_range}")
 
-        # Run the agent with the three search parameters
-        result = run_agent(request.activity, request.location, request.when)
+        # Pass all five parameters separately to the agent
+        # Previously these were bundled into one string — now each param is explicit
+        # This makes the agent's job clearer and results more accurate
+        result = run_agent(
+            activities=request.activities,
+            location=request.location,
+            date=request.date,
+            age_range=request.age_range,
+            cost_range=request.cost_range
+        )
 
-        # Log that the search completed successfully
+        # Log successful completion so we can monitor the pipeline
         logger.info("Search completed successfully")
 
+        # Return the result as a JSON object the frontend can read
         return {"result": result}
 
     except ValueError as e:
-        # ValueError usually means something was wrong with the input data
+        # ValueError means something was wrong with the input data
         # 400 Bad Request tells the frontend the problem was with what it sent
         logger.error(f"ValueError in search: {str(e)}")
         raise HTTPException(status_code=400, detail="Invalid search parameters. Please try again.")

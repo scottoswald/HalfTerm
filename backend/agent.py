@@ -34,26 +34,34 @@ agent_executor = create_react_agent(llm, tools)
 # This is the public interface of the agent — the only function main.py calls
 # It takes the search parameters, builds a detailed query, runs the agent
 # and returns Claude's final formatted response
-def run_agent(activity: str, location: str, when: str) -> str:
-    # Build a detailed natural language query from all search parameters
-    # The more context we give the agent the better it can filter results
+def run_agent(activities: list[str], location: str, date: str, age_range: str, cost_range: str) -> str:
+    # Join activities list into a readable string
+    # e.g. ["Museums", "Outdoor"] becomes "Museums, Outdoor"
+    activities_str = ", ".join(activities) if activities else "family activities"
+
+    # Build a detailed structured query from all five parameters
+    # Each parameter is clearly labelled so Claude can use them precisely
     query = f"""
-    Find {activity} activities for kids in {location} {when}.
-    
+    Find activities for kids in {location}.
+
+    Search criteria:
+    - Activities: {activities_str}
+    - Date: {date}
+    - Age range: {age_range}
+    - Budget: {cost_range}
+
     Please follow these instructions carefully:
     - Search for both live events and venue information
-    - Filter results to match the specified criteria in: {when}
-    - For age range: only suggest activities suitable for the specified age group
-    - For budget: only suggest activities within the specified cost range
-    - Present results in a clear, friendly format for families
-    - For each result include: name, location, cost if known, and why it's good for kids
-    - If you cannot find results matching all criteria, say so clearly and suggest alternatives
+    - Only suggest activities suitable for ages {age_range}
+    - Only suggest activities within the budget: {cost_range}
+    - Present results in a clear friendly format for families
+    - For each result include: name, location, cost, and why it's good for kids
+    - If you cannot find results matching all criteria say so clearly and suggest alternatives
     - Always include booking links or website URLs where available
     """
 
-    # Invoke the agent with the detailed query
-    # The agent will reason through which tools to use and return a response
+    # Invoke the agent with the structured query
     result = agent_executor.invoke({"messages": [("human", query)]})
 
-    # Return the last message which is Claude's final formatted response
+    # Return Claude's final formatted response
     return result["messages"][-1].content

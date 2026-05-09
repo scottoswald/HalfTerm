@@ -78,10 +78,6 @@ function App() {
   }
 
   const handleSearch = async () => {
-    // If no activities selected, default to all activities
-    const activities = selectedActivities.length > 0
-      ? selectedActivities.join(', ')
-      : 'family activities'
 
     setLoading(true)
 
@@ -104,11 +100,14 @@ function App() {
       const response = await fetch(`${apiUrl}/search`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        // Pass all five search parameters to the backend
+        // Pass all five search parameters as separate structured fields
+        // This matches the new SearchRequest model in main.py
         body: JSON.stringify({
-          activity: activities,
+          activities: selectedActivities.length > 0 ? selectedActivities : ['family activities'],
           location,
-          when: `${date}, suitable for ages ${ageRange}, cost range: ${costRange}`,
+          date,
+          age_range: ageRange,
+          cost_range: costRange,
         }),
       })
 
