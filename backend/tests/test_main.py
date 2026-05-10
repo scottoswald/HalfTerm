@@ -95,14 +95,15 @@ def test_search_endpoint_called_with_correct_arguments():
         client.post("/search", json=VALID_REQUEST)
 
         # Assert run_agent was called with the correct keyword arguments
-        # Now using keyword args to match our new structured parameter approach
-        mock_agent.assert_called_once_with(
-            activities=["Museums", "Outdoor Activities"],
-            location="London",
-            date="today",
-            age_range="all ages",
-            cost_range="any cost"
-        )
+        # Note: date is resolved before reaching run_agent so we check
+        # that it starts with 'today' rather than an exact match
+        # since the exact date changes daily
+        call_kwargs = mock_agent.call_args.kwargs
+        assert call_kwargs['activities'] == ["Museums", "Outdoor Activities"]
+        assert call_kwargs['location'] == "London"
+        assert call_kwargs['date'].startswith('today')
+        assert call_kwargs['age_range'] == "all ages"
+        assert call_kwargs['cost_range'] == "any cost"
 
 def test_ConnectionError_runs_as_expected():
     with patch('main.run_agent') as mock_agent:

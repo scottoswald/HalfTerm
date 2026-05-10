@@ -1,9 +1,11 @@
+from datetime import datetime, timedelta
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 from pydantic import BaseModel
 from agent import run_agent
 import logging
+import pytz
 
 # Load environment variables from .env file before anything else runs
 load_dotenv()
@@ -33,6 +35,81 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+def resolve_date(date_value: str) -> str:
+    """
+    Convert a relative date string into an exact date or date range.
+    This is called before passing dates to the agent so Claude
+    always receives precise dates rather than relative terms it has to interpret.
+    
+    For example:
+    'today' -> 'today (Wednesday 13th May 2026)'
+    'this weekend' -> 'this weekend (Saturday 16th May and Sunday 17th May 2026)'
+    'next week' -> 'next week (Monday 18th May to Sunday 24th May 2026)'
+    """
+    # Get current date in UK timezone
+    # This ensures dates are correct for UK users regardless of server timezone
+    uk_tz = pytz.timezone('Europe/London')
+    now = datetime.now(uk_tz)
+    today = now.date()
+
+    # Helper to format a date as "Monday 13th May 2026"
+    def format_date(d):
+        # %-d removes the leading zero from the day number on Linux/Mac
+        day = d.strftime('%-d')
+        # Add the correct ordinal suffix (1st, 2nd, 3rd, 4th etc)
+        if day in ('1', '21', '31'):
+            suffix = 'st'
+        elif day in ('2', '22'):
+            suffix = 'nd'
+        elif day in ('3', '23'):
+            suffix = 'rd'
+        else:
+            suffix = 'th'
+        return d.strftime(f'%A {day}{suffix} %B %Y')
+
+    if date_value == 'today':
+        return f"today ({format_date(today)})"
+
+    elif date_value == 'tomorrow':
+        tomorrow = today + timedelta(days=1)
+        return f"tomorrow ({format_date(tomorrow)})"
+
+    elif date_value == 'this weekend':
+        # If today is Saturday (5) or Sunday (6) — we're already in the weekend
+        # So "this weekend" means the current weekend we're in
+        if today.weekday() == 5:
+            # Today is Saturday — weekend is today and tomorrow
+            saturday = today
+            sunday = today + timedelta(days=1)
+        elif today.weekday() == 6:
+            # Today is Sunday — weekend is yesterday and today
+            saturday = today - timedelta(days=1)
+            sunday = today
+        else:
+            # It's a weekday — calculate days until next Saturday
+            days_until_saturday = 5 - today.weekday()
+            saturday = today + timedelta(days=days_until_saturday)
+            sunday = saturday + timedelta(days=1)
+        return f"this weekend ({format_date(saturday)} and {format_date(sunday)})"
+
+    elif date_value == 'this week':
+        # This week = today until Sunday
+        days_until_sunday = (6 - today.weekday()) % 7
+        if days_until_sunday == 0:
+            days_until_sunday = 7
+        sunday = today + timedelta(days=days_until_sunday)
+        return f"this week ({format_date(today)} to {format_date(sunday)})"
+
+    elif date_value == 'next week':
+        # Next week = Monday to Sunday of next week
+        days_until_next_monday = (7 - today.weekday()) % 7 or 7
+        next_monday = today + timedelta(days=days_until_next_monday)
+        next_sunday = next_monday + timedelta(days=6)
+        return f"next week ({format_date(next_monday)} to {format_date(next_sunday)})"
+
+    # If we don't recognise the value just return it as is
+    return date_value
 
 # ---- REQUEST MODEL ----
 # Defines the expected shape of the search request from the frontend
@@ -64,19 +141,23 @@ def read_root():
 @app.post("/search")
 def search(request: SearchRequest):
     try:
-        # Log the incoming search so we can see what's being searched in the terminal
-        # This is useful for debugging and monitoring usage patterns
-        logger.info(f"Search request: {request.activities} in {request.location} on {request.date} for ages {request.age_range} budget {request.cost_range}")
+        # Resolve the relative date string to exact dates before passing to the agent
+        # This means Claude always receives precise dates rather than having to guess
+        # e.g. "this weekend" becomes "this weekend (Saturday 16th May and Sunday 17th May 2026)"
+        resolved_date = resolve_date(request.date)
 
-        # Pass all five parameters separately to the agent
-        # Previously these were bundled into one string — now each param is explicit
-        # This makes the agent's job clearer and results more accurate
+        # Log the full search request including the resolved date
+        # Using resolved_date here so we can see exactly what the agent receives
+        logger.info(f"Search request: {request.activities} in {request.location} on {resolved_date} for ages {request.age_range} budget {request.cost_range}")
+
+        # Pass all five parameters to the agent
+        # date uses resolved_date so the agent gets exact dates not relative terms
         result = run_agent(
-            activities=request.activities,
-            location=request.location,
-            date=request.date,
-            age_range=request.age_range,
-            cost_range=request.cost_range
+            activities=request.activities,   # List of selected activity types
+            location=request.location,       # UK city to search in
+            date=resolved_date,              # Exact date(s) e.g. "Saturday 16th May 2026"
+            age_range=request.age_range,     # Children's age range e.g. "4-7"
+            cost_range=request.cost_range    # Budget range e.g. "free", "under £10"
         )
 
         # Log successful completion so we can monitor the pipeline
