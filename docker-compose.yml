@@ -33,7 +33,7 @@ services:
       # Pass empty string as VITE_BACKEND_URL to tell the frontend
       # to use the nginx reverse proxy instead of a direct backend URL
       args:
-        VITE_BACKEND_URL: ""
+        VITE_BACKEND_URL: /api
     # Name the container for easy identification
     container_name: halfterm-frontend
     # Map port 3000 on your Mac to port 80 inside the nginx container

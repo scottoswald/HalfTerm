@@ -1,10 +1,58 @@
 from langchain_core.tools import tool
-from datetime import datetime
+from datetime import datetime, timedelta
 import requests
 import os
+import re
+
+def parse_date_range(date_str: str) -> tuple[str, str]:
+    """
+    Parse a date string from the agent into Ticketmaster API date range format.
+    
+    The agent receives resolved dates like:
+    - 'today (Tuesday 12th May 2026)'
+    - 'this weekend (Saturday 16th May and Sunday 17th May 2026)'
+    - 'next week (Monday 18th May to Sunday 24th May 2026)'
+    
+    Returns a tuple of (start_datetime, end_datetime) in Ticketmaster format.
+    """
+    today = datetime.now()
+
+    # Try to extract dates from the resolved date string
+    # Look for patterns like "12th May 2026" or "16th May"
+    date_pattern = r'(\d{1,2})(?:st|nd|rd|th)\s+(\w+)\s+(\d{4})'
+    matches = re.findall(date_pattern, date_str)
+
+    if matches:
+        try:
+            # Parse the first date found
+            first_date = datetime.strptime(
+                f"{matches[0][0]} {matches[0][1]} {matches[0][2]}", 
+                "%d %B %Y"
+            )
+            # If there's a second date use it as the end, otherwise end of first day
+            if len(matches) > 1:
+                last_date = datetime.strptime(
+                    f"{matches[-1][0]} {matches[-1][1]} {matches[-1][2]}", 
+                    "%d %B %Y"
+                )
+            else:
+                last_date = first_date
+
+            # Format as Ticketmaster expects — start of first day to end of last day
+            start_datetime = first_date.strftime("%Y-%m-%dT00:00:00Z")
+            end_datetime = last_date.strftime("%Y-%m-%dT23:59:59Z")
+            return start_datetime, end_datetime
+
+        except ValueError:
+            pass
+
+    # Fallback to today if we can't parse the date
+    today_str = today.strftime("%Y-%m-%d")
+    return f"{today_str}T00:00:00Z", f"{today_str}T23:59:59Z"
+
 
 @tool
-def search_ticketmaster_events(location: str) -> str:
+def search_ticketmaster_events(location: str, date: str) -> str:
     """
     Search for kids and family events using the Ticketmaster API.
     Returns a list of live events with venue, date, time and booking links.
@@ -15,19 +63,13 @@ def search_ticketmaster_events(location: str) -> str:
     # Get the Ticketmaster API key from environment variables
     api_key = os.getenv("TICKETMASTER_API_KEY")
 
-    # Get today's date in the format Ticketmaster expects
-    # strftime formats a date object into a string
-    # %Y = four digit year, %m = month, %d = day
-    today = datetime.now().strftime("%Y-%m-%d")
-
-    # Ticketmaster requires dates in this exact format with time and timezone
-    start_datetime = f"{today}T00:00:00Z"
-    end_datetime = f"{today}T23:59:59Z"
+    # Parse the date string into Ticketmaster's required format
+    # The date comes pre-resolved e.g. "this weekend (Saturday 16th May and Sunday 17th May 2026)"
+    start_datetime, end_datetime = parse_date_range(date)
 
     try:
         # Make the API request with a timeout
         # timeout=10 means if Ticketmaster doesn't respond in 10 seconds give up
-        # Without a timeout the app could hang forever waiting for a response
         response = requests.get(
             "https://app.ticketmaster.com/discovery/v2/events.json",
             params={
@@ -43,17 +85,14 @@ def search_ticketmaster_events(location: str) -> str:
         )
 
         # raise_for_status() throws an error if the status code is 4xx or 5xx
-        # For example 401 (unauthorized) or 500 (server error)
-        # Without this requests would silently return even on failed requests
         response.raise_for_status()
 
         # Parse the JSON response into a Python dictionary
         data = response.json()
 
         # Check if any events were found
-        # Ticketmaster wraps results in _embedded.events
         if "_embedded" not in data or "events" not in data["_embedded"]:
-            return "No family events found in London today on Ticketmaster."
+            return f"No family events found in {location} for the selected dates on Ticketmaster."
 
         events = data["_embedded"]["events"]
 
@@ -61,7 +100,6 @@ def search_ticketmaster_events(location: str) -> str:
         results = []
         for event in events:
             # Safely extract event details using .get()
-            # .get() returns None if the key doesn't exist rather than throwing an error
             name = event.get("name", "Unknown event")
             url = event.get("url", "No URL available")
 
@@ -82,19 +120,17 @@ def search_ticketmaster_events(location: str) -> str:
         return "\n\n".join(results)
 
     except requests.exceptions.Timeout:
-        # The request took too long — Ticketmaster might be slow or down
         return "Ticketmaster is taking too long to respond. Please try again shortly."
 
     except requests.exceptions.ConnectionError:
-        # No internet connection or Ticketmaster is unreachable
         return "Could not connect to Ticketmaster. Please check your connection and try again."
 
     except requests.exceptions.HTTPError as e:
-        # The API returned an error status code (4xx or 5xx)
         return f"Ticketmaster returned an error: {str(e)}. Please try again shortly."
 
     except Exception as e:
-        # Catch any other unexpected errors
-        # We print the error for debugging but return a friendly message to the user
-        print(f"Unexpected error in search_ticketmaster_events: {str(e)}")
+        # Log the full error for debugging but return a friendly message
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Unexpected error in search_ticketmaster_events: {str(e)}")
         return "Something went wrong searching for events. Please try again."

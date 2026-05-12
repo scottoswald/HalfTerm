@@ -5,6 +5,7 @@ from tools import search_ticketmaster_events, search_google_places, search_event
 import os
 
 # Load environment variables from .env file before anything else runs
+# This ensures API keys are available when the model is initialised
 load_dotenv()
 
 # ---- THE MODEL ----
@@ -18,29 +19,30 @@ llm = ChatAnthropic(
 )
 
 # ---- THE TOOLS ----
-# Tools are now in their own files under backend/tools/
-# search_ticketmaster_events — finds live family events via Ticketmaster API
-# search_google_places — finds venue information via Google Places API
-# search_eventbrite_events — finds additional family events via Eventbrite API
+# Tools are defined in their own files under backend/tools/
+# search_ticketmaster_events — finds live ticketed events via Ticketmaster API
+# search_google_places — finds permanent venues via Google Places API
+# search_eventbrite_events — finds community events and workshops via Eventbrite API
+# Claude reads each tool's docstring to decide when and how to use it
 tools = [search_ticketmaster_events, search_google_places, search_eventbrite_events]
 
 # ---- THE AGENT ----
 # create_react_agent wires together the LLM and tools
 # The agent uses the ReAct pattern — Reason, Act, Observe, repeat
-# It reads the tool docstrings to decide which tools to call
+# It reads the tool docstrings to decide which tools to call and when
 agent_executor = create_react_agent(llm, tools)
 
 # ---- THE RUN FUNCTION ----
 # This is the public interface of the agent — the only function main.py calls
-# It takes the search parameters, builds a detailed query, runs the agent
-# and returns Claude's final formatted response
+# It takes all five search parameters and builds a detailed query for Claude
 def run_agent(activities: list[str], location: str, date: str, age_range: str, cost_range: str) -> str:
     # Join activities list into a readable string
-    # e.g. ["Museums", "Outdoor"] becomes "Museums, Outdoor"
+    # e.g. ["Museums", "Outdoor Activities"] becomes "Museums, Outdoor Activities"
     activities_str = ", ".join(activities) if activities else "family activities"
 
     # Build a detailed structured query from all five parameters
-    # Each parameter is clearly labelled so Claude can use them precisely
+    # We explicitly tell Claude which parameters to pass to each tool
+    # This ensures date filtering works correctly across all three APIs
     query = f"""
     Find activities for kids in {location}.
 
@@ -52,16 +54,20 @@ def run_agent(activities: list[str], location: str, date: str, age_range: str, c
 
     Please follow these instructions carefully:
     - Search for both live events and venue information
+    - When calling search_ticketmaster_events, pass location="{location}" and date="{date}"
+    - When calling search_eventbrite_events, pass location="{location}", query="{activities_str}" and date="{date}"
+    - When calling search_google_places, pass query="{activities_str}" and location="{location}"
     - Only suggest activities suitable for ages {age_range}
     - Only suggest activities within the budget: {cost_range}
     - Present results in a clear friendly format for families
-    - For each result include: name, location, cost, and why it's good for kids
+    - For each result include: name, location, cost, and why it is good for kids
     - If you cannot find results matching all criteria say so clearly and suggest alternatives
     - Always include booking links or website URLs where available
     """
 
     # Invoke the agent with the structured query
+    # The agent will reason through which tools to use and return a response
     result = agent_executor.invoke({"messages": [("human", query)]})
 
-    # Return Claude's final formatted response
+    # Return the last message which is Claude's final formatted response
     return result["messages"][-1].content

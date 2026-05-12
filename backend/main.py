@@ -94,10 +94,11 @@ def resolve_date(date_value: str) -> str:
         return f"this weekend ({format_date(saturday)} and {format_date(sunday)})"
 
     elif date_value == 'this week':
-        # This week = today until Sunday
-        days_until_sunday = (6 - today.weekday()) % 7
-        if days_until_sunday == 0:
-            days_until_sunday = 7
+        # If today is Sunday we're at the end of the week — just return today
+        if today.weekday() == 6:
+            return f"this week ({format_date(today)})"
+        # Otherwise return from today to the coming Sunday
+        days_until_sunday = 6 - today.weekday()
         sunday = today + timedelta(days=days_until_sunday)
         return f"this week ({format_date(today)} to {format_date(sunday)})"
 

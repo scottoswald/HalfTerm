@@ -39,7 +39,9 @@ const AGE_RANGES = [
 ]
 
 // Cost range options — passed to the agent to filter results
+// 'any' is the default — means no budget restriction
 const COST_RANGES = [
+  { label: 'Any Budget', value: 'any' },
   { label: 'Free only', value: 'free' },
   { label: 'Under £10', value: 'under £10' },
   { label: '£10 - £25', value: '£10 to £25' },
@@ -63,7 +65,7 @@ function App() {
   const [location, setLocation] = useState('London')
   const [date, setDate] = useState('today')
   const [ageRange, setAgeRange] = useState('all ages')
-  const [costRange, setCostRange] = useState('any cost')
+  const [costRange, setCostRange] = useState('any') // Default to 'any' so no budget restriction is applied unless user chooses one
   const [loading, setLoading] = useState(false)
   const [loadingMessage, setLoadingMessage] = useState('')
 
@@ -90,12 +92,11 @@ function App() {
     }, 2000)
 
     try {
-      // VITE_BACKEND_URL is set to empty string in production Docker build
-      // which tells the frontend to use the nginx reverse proxy at /api/
-      // Locally it falls back to hitting the backend directly at localhost:8000
-      const apiUrl = import.meta.env.VITE_BACKEND_URL === '' 
-        ? '/api' 
-        : 'http://localhost:8000'
+      // VITE_BACKEND_URL controls which backend URL to use:
+      // - Set to '/api' in Docker — routes through nginx reverse proxy
+      // - Unset locally — falls back to localhost:8000 directly
+      // - Set to a full URL (e.g. for Railway) — uses that URL directly
+      const apiUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000'
 
       const response = await fetch(`${apiUrl}/search`, {
         method: 'POST',

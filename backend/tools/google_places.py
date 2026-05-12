@@ -104,5 +104,7 @@ def search_google_places(query: str, location: str) -> str:
 
     except Exception as e:
         # Log the full error for debugging but return a friendly message
-        print(f"Unexpected error in search_google_places: {str(e)}")
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Unexpected error in search_google_places: {str(e)}")
         return "Something went wrong searching for venues. Please try again."
