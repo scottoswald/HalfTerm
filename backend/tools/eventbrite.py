@@ -6,8 +6,11 @@ import os
 def search_eventbrite_events(location: str, query: str) -> str:
     """
     Search for kids and family events using the Eventbrite API.
-    Returns a list of relevant events with details and links.
-    Use this tool to find additional family events beyond Ticketmaster.
+    Returns community events, workshops, classes and local activities with details and links.
+    Use this tool to find smaller local events, workshops and classes that may not appear
+    on Ticketmaster — things like craft workshops, coding classes, sports sessions,
+    family fun days and community events.
+    Always use this tool alongside Ticketmaster for comprehensive event coverage.
     """
     # Get the Eventbrite API key from environment variables
     api_key = os.getenv("EVENTBRITE_API_KEY")

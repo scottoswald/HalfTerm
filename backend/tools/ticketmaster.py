@@ -6,9 +6,11 @@ import os
 @tool
 def search_ticketmaster_events(location: str) -> str:
     """
-    Search for kids and family events happening today at museums in London
-    using the Ticketmaster API. Returns a list of real live events.
-    Use this tool when the user wants to find museum activities for children.
+    Search for kids and family events using the Ticketmaster API.
+    Returns a list of live events with venue, date, time and booking links.
+    Use this tool to find ticketed events and attractions happening on the specified dates.
+    Works for any UK city and any type of family activity.
+    Always use this tool when searching for live events, shows, attractions or activities.
     """
     # Get the Ticketmaster API key from environment variables
     api_key = os.getenv("TICKETMASTER_API_KEY")

@@ -25,9 +25,12 @@ UK_CITY_COORDINATES = {
 @tool
 def search_google_places(query: str, location: str) -> str:
     """
-    Search for family friendly venues in a UK city using the Google Places API.
-    Returns details about relevant venues including address and rating.
-    Use this tool to find information about specific venues or attractions.
+    Search for family friendly venues, museums, parks and attractions in a UK city
+    using the Google Places API.
+    Returns venue details including address, rating and website.
+    Use this tool to find permanent venues and attractions — museums, parks, 
+    science centres, zoos, theatres and similar places families can visit.
+    Always use this tool alongside Ticketmaster to provide venue information.
     """
     # Get the Google Places API key from environment variables
     api_key = os.getenv("GOOGLE_PLACES_API_KEY")
