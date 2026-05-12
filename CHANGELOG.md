@@ -3,6 +3,31 @@
 All notable changes to Halfterm will be documented in this file.
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [3.0.0] - 2026-05-12
+
+### Added
+- Structured search parameters — activities, location, date, age_range and cost_range now separate fields
+- resolve_date function — converts relative dates to exact dates server side before reaching the agent
+- pytz library for accurate UK timezone handling
+- "Any Budget" option added to cost range filter
+- date parameter added to Ticketmaster and Eventbrite tools — date filtering now works correctly
+- parse_date_range function in Ticketmaster tool — extracts exact dates from resolved date strings
+
+### Fixed
+- "This weekend" on Saturday or Sunday now correctly returns the current weekend
+- "This week" on Sunday now correctly returns just today rather than jumping to next Sunday
+- Ticketmaster error message was hardcoded to "London" — now uses the actual location parameter
+- costRange initial state was "any cost" which didn't exist in the options list
+- VITE_BACKEND_URL logic now properly uses the value if set rather than always falling back to localhost
+- print() statements in tool files replaced with proper logger calls
+- load_dotenv() retained in agent.py for correct test context behaviour
+
+### Changed
+- SearchRequest model updated with five structured fields replacing the old bundled string approach
+- Agent prompt updated to explicitly pass date to each tool
+- Tool docstrings rewritten for better agent decision making
+- Agent query now clearly labels each search parameter for Claude
+
 ## [2.1.1] - 2026-05-07
 
 ### Added
