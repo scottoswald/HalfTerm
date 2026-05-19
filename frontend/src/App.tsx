@@ -52,7 +52,7 @@ const COST_RANGES = [
 // Loading messages to cycle through while the agent works
 const LOADING_MESSAGES = [
   'Searching for activities...',
-  'Checking what\'s on...',
+  "Checking what's on...",
   'Finding the best options...',
   'Almost there...',
 ]
@@ -65,7 +65,8 @@ function App() {
   const [location, setLocation] = useState('London')
   const [date, setDate] = useState('today')
   const [ageRange, setAgeRange] = useState('all ages')
-  const [costRange, setCostRange] = useState('any') // Default to 'any' so no budget restriction is applied unless user chooses one
+  // Default to 'any' so no budget restriction is applied unless user chooses one
+  const [costRange, setCostRange] = useState('any')
   const [loading, setLoading] = useState(false)
   const [loadingMessage, setLoadingMessage] = useState('')
 
@@ -80,10 +81,9 @@ function App() {
   }
 
   const handleSearch = async () => {
-
     setLoading(true)
 
-    // Cycle through loading messages every 2 seconds
+    // Cycle through loading messages every 2 seconds while the agent works
     let messageIndex = 0
     setLoadingMessage(LOADING_MESSAGES[0])
     const messageInterval = setInterval(() => {
@@ -102,7 +102,7 @@ function App() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         // Pass all five search parameters as separate structured fields
-        // This matches the new SearchRequest model in main.py
+        // This matches the SearchRequest model in main.py
         body: JSON.stringify({
           activities: selectedActivities.length > 0 ? selectedActivities : ['family activities'],
           location,
@@ -113,14 +113,28 @@ function App() {
       })
 
       const data = await response.json()
-      navigate('/results', { state: { result: data.result } })
+
+      // Navigate to results page passing the full structured JSON object
+      // The Results page now expects events and venues arrays not a markdown string
+      navigate('/results', { state: { result: data } })
 
     } catch (error) {
       console.error('Search failed:', error)
+      // Navigate to results with a structured error object
+      // Results.tsx checks for the error field and shows a friendly message
       navigate('/results', {
-        state: { result: 'Sorry, something went wrong. Please try again.' }
+        state: {
+          result: {
+            search_summary: '',
+            events: [],
+            venues: [],
+            error: 'Sorry, something went wrong. Please try again.'
+          }
+        }
       })
     } finally {
+      // Always clear the interval and reset loading state
+      // whether the search succeeded or failed
       clearInterval(messageInterval)
       setLoading(false)
     }
@@ -152,14 +166,13 @@ function App() {
                   Pick one or more
                 </span>
               </label>
-              {/* Grid of clickable activity cards */}
+              {/* Grid of clickable activity buttons — selected ones turn primary orange */}
               <div className="grid grid-cols-4 gap-2">
                 {ACTIVITIES.map(activity => (
                   <button
                     key={activity.value}
                     onClick={() => toggleActivity(activity.value)}
-                    // btn is a Daisy UI class — btn-primary applies when selected
-                    // btn-outline is the unselected state
+                    // btn-primary applies when selected, btn-outline when not
                     className={`btn btn-sm flex-col h-auto py-3 gap-1 ${
                       selectedActivities.includes(activity.value)
                         ? 'btn-primary'
@@ -178,7 +191,6 @@ function App() {
               <label className="label">
                 <span className="label-text font-semibold text-base">Where?</span>
               </label>
-              {/* select and select-bordered are Daisy UI classes */}
               <select
                 className="select select-bordered w-full"
                 value={location}
@@ -190,7 +202,7 @@ function App() {
               </select>
             </div>
 
-            {/* Date, age range and cost range in a row */}
+            {/* Date, age range and cost range in a three column row */}
             <div className="grid grid-cols-3 gap-4">
 
               {/* Date dropdown */}
@@ -242,7 +254,7 @@ function App() {
               </div>
             </div>
 
-            {/* Search button — btn-primary and btn-block are Daisy UI classes */}
+            {/* Search button — disabled while loading to prevent double submits */}
             <button
               className="btn btn-primary btn-block btn-lg mt-2"
               onClick={handleSearch}

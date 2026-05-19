@@ -43,27 +43,37 @@ def test_search_endpoint_returns_200():
 
 def test_search_endpoint_returns_result():
     with patch('main.run_agent') as mock_agent:
-        mock_agent.return_value = "Some museum activities for kids"
+        # run_agent now returns a structured dict not a string
+        mock_agent.return_value = {
+            "search_summary": "Museums in London",
+            "events": [],
+            "venues": []
+        }
 
         response = client.post("/search", json=VALID_REQUEST)
         data = response.json()
 
-        # Assert the response has a result field
-        assert "result" in data
-
-        # Assert the result is a non empty string
-        assert isinstance(data["result"], str)
-        assert len(data["result"]) > 0
+        # Assert the response has the new structured fields
+        assert "search_summary" in data
+        assert "events" in data
+        assert "venues" in data
 
 def test_search_endpoint_returns_correct_result():
     with patch('main.run_agent') as mock_agent:
-        mock_agent.return_value = "Science Museum activities for kids"
+        # Set a specific structured return value so we can assert exactly what comes back
+        mock_agent.return_value = {
+            "search_summary": "Museums in London, All ages, Any budget",
+            "events": [],
+            "venues": []
+        }
 
         response = client.post("/search", json=VALID_REQUEST)
         data = response.json()
 
-        # Assert the result matches exactly what our mock returned
-        assert data["result"] == "Science Museum activities for kids"
+        # Assert the search summary matches exactly what our mock returned
+        assert data["search_summary"] == "Museums in London, All ages, Any budget"
+        assert isinstance(data["events"], list)
+        assert isinstance(data["venues"], list)
 
 def test_search_endpoint_rejects_missing_fields():
     # Send an incomplete request — missing required fields

@@ -3,6 +3,10 @@ from langchain_anthropic import ChatAnthropic
 from langgraph.prebuilt import create_react_agent
 from tools import search_ticketmaster_events, search_google_places, search_eventbrite_events
 import os
+import json
+import logging
+
+logger = logging.getLogger(__name__)
 
 # Load environment variables from .env file before anything else runs
 # This ensures API keys are available when the model is initialised
@@ -35,14 +39,17 @@ agent_executor = create_react_agent(llm, tools)
 # ---- THE RUN FUNCTION ----
 # This is the public interface of the agent — the only function main.py calls
 # It takes all five search parameters and builds a detailed query for Claude
-def run_agent(activities: list[str], location: str, date: str, age_range: str, cost_range: str) -> str:
+def run_agent(activities: list[str], location: str, date: str, age_range: str, cost_range: str) -> dict:
     # Join activities list into a readable string
     # e.g. ["Museums", "Outdoor Activities"] becomes "Museums, Outdoor Activities"
     activities_str = ", ".join(activities) if activities else "family activities"
 
-    # Build a detailed structured query from all five parameters
-    # We explicitly tell Claude which parameters to pass to each tool
-    # This ensures date filtering works correctly across all three APIs
+    # The keyword list Claude can choose from for each result
+    # Keeping this fixed ensures consistency across all results
+    keywords_list = "sibling friendly, dog friendly, accessible, parking nearby, café on site, book in advance, free cancellation, outdoor, indoor, rainy day, sunny day, drop in, booking required, gift shop, picnic area, photography allowed"
+
+    # Build the query asking Claude to return structured JSON
+    # We're very explicit about the format to ensure consistent parsing
     query = f"""
     Find activities for kids in {location}.
 
@@ -52,22 +59,87 @@ def run_agent(activities: list[str], location: str, date: str, age_range: str, c
     - Age range: {age_range}
     - Budget: {cost_range}
 
-    Please follow these instructions carefully:
-    - Search for both live events and venue information
+    Instructions:
     - When calling search_ticketmaster_events, pass location="{location}" and date="{date}"
     - When calling search_eventbrite_events, pass location="{location}", query="{activities_str}" and date="{date}"
     - When calling search_google_places, pass query="{activities_str}" and location="{location}"
-    - Only suggest activities suitable for ages {age_range}
-    - Only suggest activities within the budget: {cost_range}
-    - Present results in a clear friendly format for families
-    - For each result include: name, location, cost, and why it is good for kids
-    - If you cannot find results matching all criteria say so clearly and suggest alternatives
-    - Always include booking links or website URLs where available
+    - Only include results suitable for ages {age_range}
+    - Only include results within the budget: {cost_range}
+    - Return a maximum of 5 events and 5 venues
+    - For keywords, only choose from this exact list: {keywords_list}
+    - For directions_url use this format: https://www.google.com/maps/dir/?api=1&destination=VENUE_ADDRESS_URL_ENCODED
+
+    You MUST respond with ONLY a valid JSON object — no markdown, no explanation, no text before or after.
+    The JSON must follow this exact structure:
+
+    {{
+      "search_summary": "brief summary of what was searched e.g. Museums in London, Saturday 16th May 2026, Ages 8-12, Free",
+      "events": [
+        {{
+          "type": "event",
+          "name": "event name",
+          "image_url": null,
+          "location": "full address",
+          "date": "formatted date",
+          "time": "formatted time e.g. 10:00 AM",
+          "age_range": "e.g. 3-8 or All ages",
+          "cost": "e.g. From £18 or Free",
+          "is_free": true or false,
+          "categories": ["category1", "category2"],
+          "rating": null or number e.g. 4.6,
+          "keywords": ["keyword1", "keyword2"],
+          "description": "one sentence description",
+          "expanded_description": "full paragraph with practical details for families",
+          "booking_url": "url or null",
+          "directions_url": "google maps directions url"
+        }}
+      ],
+      "venues": [
+        {{
+          "type": "venue",
+          "name": "venue name",
+          "image_url": null,
+          "location": "full address",
+          "opening_times": "e.g. Daily 10:00 AM - 5:50 PM",
+          "age_range": "e.g. All ages",
+          "cost": "e.g. Free or From £10",
+          "is_free": true or false,
+          "categories": ["category1", "category2"],
+          "rating": null or number e.g. 4.6,
+          "keywords": ["keyword1", "keyword2"],
+          "description": "one sentence description",
+          "expanded_description": "full paragraph with practical details for families",
+          "website_url": "url or null",
+          "directions_url": "google maps directions url"
+        }}
+      ]
+    }}
     """
 
     # Invoke the agent with the structured query
-    # The agent will reason through which tools to use and return a response
     result = agent_executor.invoke({"messages": [("human", query)]})
 
-    # Return the last message which is Claude's final formatted response
-    return result["messages"][-1].content
+    # Get Claude's response
+    response_text = result["messages"][-1].content
+
+    # Parse the JSON response
+    # Claude should return pure JSON but we strip any accidental whitespace
+    try:
+        # Sometimes Claude wraps JSON in ```json blocks despite instructions
+        # Strip those if present
+        cleaned = response_text.strip()
+        if cleaned.startswith("```"):
+            cleaned = cleaned.split("```")[1]
+            if cleaned.startswith("json"):
+                cleaned = cleaned[4:]
+        return json.loads(cleaned.strip())
+    except json.JSONDecodeError as e:
+        # If JSON parsing fails log the error and return a structured error response
+        logger.error(f"Failed to parse agent JSON response: {str(e)}")
+        logger.error(f"Raw response: {response_text}")
+        return {
+            "search_summary": f"{activities_str} in {location}",
+            "events": [],
+            "venues": [],
+            "error": "Sorry, something went wrong formatting the results. Please try again."
+        }

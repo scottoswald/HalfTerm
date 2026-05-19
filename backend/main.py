@@ -164,8 +164,9 @@ def search(request: SearchRequest):
         # Log successful completion so we can monitor the pipeline
         logger.info("Search completed successfully")
 
-        # Return the result as a JSON object the frontend can read
-        return {"result": result}
+        # Return the structured JSON result directly
+        # The frontend will receive events and venues as separate arrays
+        return result
 
     except ValueError as e:
         # ValueError means something was wrong with the input data
