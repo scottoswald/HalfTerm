@@ -3,6 +3,22 @@
 All notable changes to Halfterm will be documented in this file.
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [3.2.0] - 2026-05-20
+
+### Changed
+- Frontend refactored into smaller files:
+  - src/types/index.ts — all TypeScript interfaces
+  - src/components/EventCard.tsx — event card component
+  - src/components/VenueCard.tsx — venue card component
+  - src/components/StarRating.tsx — star rating component
+  - src/components/SearchSummary.tsx — search summary pills component
+  - Results.tsx and App.tsx are now thin orchestration files
+- Backend refactored into smaller files:
+  - routes/search.py — search and health check routes
+  - models/requests.py — SearchRequest Pydantic model
+  - utils/date_resolver.py — resolve_date function
+  - main.py is now a thin app setup and CORS file
+
 ## [3.1.0] - 2026-05-20
 
 ### Added
