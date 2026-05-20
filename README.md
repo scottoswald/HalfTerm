@@ -144,6 +144,6 @@ Visit `http://localhost:8000/docs` to explore the backend API via Swagger UI.
 
 ## Status
 
-v3.0.0 complete. See [CHANGELOG.md](CHANGELOG.md) for full version history.
+v3.1.0 complete. See [CHANGELOG.md](CHANGELOG.md) for full version history.
 
 **Live URL:** https://halfterm.up.railway.app

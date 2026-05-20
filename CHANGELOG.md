@@ -3,6 +3,32 @@
 All notable changes to Halfterm will be documented in this file.
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [3.1.0] - 2026-05-20
+
+### Added
+- Structured JSON responses from agent replacing markdown output
+- Separate Event and Venue card components with distinct layouts
+- Cost badges — green for free, neutral for paid
+- Star rating display on venue cards
+- Keywords displayed as tag pills on each card
+- Expandable descriptions — one sentence collapsed, full paragraph expanded
+- Directions button on every card linking to Google Maps
+- Book Now button on event cards, Visit Website button on venue cards
+- Events / Venues / All toggle at top of results page
+- Search summary displayed as styled pills at top of results page
+- Activity pills have X button to remove and trigger a new search
+- If all activities removed, user is returned to search page
+- Empty state messages when a tab has no results
+- Updating results indicator shown during re-search
+- 16 frontend tests passing, 8 backend tests passing
+
+### Changed
+- Results page fully rebuilt — replaced markdown rendering with structured card components
+- Agent now returns structured JSON instead of markdown text
+- Backend search route returns JSON object directly instead of wrapping in result field
+- App.tsx now passes searchParams alongside result to Results page for re-search support
+- Page title changed to "Here's what you can do..."
+
 ## [3.0.0] - 2026-05-12
 
 ### Added
