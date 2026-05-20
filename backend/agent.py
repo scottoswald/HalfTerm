@@ -66,6 +66,22 @@ def run_agent(activities: list[str], location: str, date: str, age_range: str, c
     - Only include results suitable for ages {age_range}
     - Only include results within the budget: {cost_range}
     - Return a maximum of 5 events and 5 venues
+
+    IMPORTANT — Classification rules:
+    A VENUE is a permanent place that families can visit. It exists year-round and you can
+    turn up on any day. Examples: museums, zoos, aquariums, theme parks, science centres,
+    art galleries, parks, theatres (the building), cinemas, soft play centres.
+    This includes ticketed permanent attractions like the London Eye, Madame Tussauds,
+    Sea Life Aquarium, Legoland — these are VENUES not events even though they require tickets.
+
+    An EVENT is something happening at a specific time that is temporary or one-off.
+    Examples: a workshop, a holiday programme, a specific theatre performance,
+    a craft class, a science show, a seasonal activity, a community fun day.
+    Events have a specific start time and usually end after a few hours or days.
+
+    When in doubt — if it would still be there next month, it's a VENUE.
+    If it's only on for a limited time, it's an EVENT.
+
     - For keywords, only choose from this exact list: {keywords_list}
     - For directions_url use this format: https://www.google.com/maps/dir/?api=1&destination=VENUE_ADDRESS_URL_ENCODED
 
@@ -73,7 +89,7 @@ def run_agent(activities: list[str], location: str, date: str, age_range: str, c
     The JSON must follow this exact structure:
 
     {{
-      "search_summary": "brief summary of what was searched e.g. Museums in London, Saturday 16th May 2026, Ages 8-12, Free",
+      "search_summary": "brief summary e.g. Museums in London, Tuesday 20th May 2026, Ages 8-12, Free",
       "events": [
         {{
           "type": "event",
