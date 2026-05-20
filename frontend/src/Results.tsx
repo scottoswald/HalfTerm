@@ -55,9 +55,10 @@ interface FilterPanelProps {
   setSortBy: (value: string) => void
   costFilter: string
   setCostFilter: (value: string) => void
+  namePrefix?: string
 }
 
-function FilterPanel({ sortBy, setSortBy, costFilter, setCostFilter }: FilterPanelProps) {
+function FilterPanel({ sortBy, setSortBy, costFilter, setCostFilter, namePrefix = '' }: FilterPanelProps) {
   return (
     <div className="flex flex-col gap-6">
 
@@ -70,7 +71,7 @@ function FilterPanel({ sortBy, setSortBy, costFilter, setCostFilter }: FilterPan
               {/* Radio input — only one sort option can be selected at a time */}
               <input
                 type="radio"
-                name="sort"
+                name={`${namePrefix}sort`}
                 className="radio radio-primary radio-sm"
                 checked={sortBy === option.value}
                 onChange={() => setSortBy(option.value)}
@@ -93,7 +94,7 @@ function FilterPanel({ sortBy, setSortBy, costFilter, setCostFilter }: FilterPan
               {/* Radio input — only one cost filter can be selected at a time */}
               <input
                 type="radio"
-                name="cost"
+                name={`${namePrefix}cost`}
                 className="radio radio-primary radio-sm"
                 checked={costFilter === option.value}
                 onChange={() => setCostFilter(option.value)}
@@ -269,7 +270,7 @@ function Results() {
           {/* Filter button — mobile only, opens bottom drawer */}
           {/* lg:hidden means this button is hidden on large screens where the sidebar is visible */}
           <button
-            className="btn btn-outline btn-sm lg:hidden"
+            className="btn btn-primary btn-sm lg:hidden"
             onClick={() => setFilterDrawerOpen(true)}
           >
             Filters
@@ -288,10 +289,11 @@ function Results() {
               <div className="card-body py-5 px-5">
                 <h2 className="font-bold text-base mb-4">Filters</h2>
                 <FilterPanel
-                  sortBy={sortBy}
-                  setSortBy={setSortBy}
-                  costFilter={costFilter}
-                  setCostFilter={setCostFilter}
+                    sortBy={sortBy}
+                    setSortBy={setSortBy}
+                    costFilter={costFilter}
+                    setCostFilter={setCostFilter}
+                    namePrefix="sidebar-"
                 />
               </div>
             </div>
@@ -379,6 +381,7 @@ function Results() {
               setSortBy={setSortBy}
               costFilter={costFilter}
               setCostFilter={setCostFilter}
+              namePrefix="drawer-"
             />
             {/* Apply button closes the drawer */}
             <button
