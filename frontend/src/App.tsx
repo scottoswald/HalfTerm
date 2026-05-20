@@ -91,6 +91,16 @@ function App() {
       setLoadingMessage(LOADING_MESSAGES[messageIndex])
     }, 2000)
 
+    // Build the search params object — used in the fetch body and passed to Results
+    // Results.tsx needs these params to re-search when the user removes an activity pill
+    const searchParams = {
+      activities: selectedActivities.length > 0 ? selectedActivities : ['family activities'],
+      location,
+      date,
+      age_range: ageRange,
+      cost_range: costRange,
+    }
+
     try {
       // VITE_BACKEND_URL controls which backend URL to use:
       // - Set to '/api' in Docker — routes through nginx reverse proxy
@@ -103,20 +113,14 @@ function App() {
         headers: { 'Content-Type': 'application/json' },
         // Pass all five search parameters as separate structured fields
         // This matches the SearchRequest model in main.py
-        body: JSON.stringify({
-          activities: selectedActivities.length > 0 ? selectedActivities : ['family activities'],
-          location,
-          date,
-          age_range: ageRange,
-          cost_range: costRange,
-        }),
+        body: JSON.stringify(searchParams),
       })
 
       const data = await response.json()
 
-      // Navigate to results page passing the full structured JSON object
-      // The Results page now expects events and venues arrays not a markdown string
-      navigate('/results', { state: { result: data } })
+      // Navigate to results page passing both the result and the search params
+      // searchParams is needed by Results.tsx to re-search when activities are removed
+      navigate('/results', { state: { result: data, searchParams } })
 
     } catch (error) {
       console.error('Search failed:', error)
@@ -129,7 +133,8 @@ function App() {
             events: [],
             venues: [],
             error: 'Sorry, something went wrong. Please try again.'
-          }
+          },
+          searchParams,
         }
       })
     } finally {

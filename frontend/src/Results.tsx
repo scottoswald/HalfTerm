@@ -49,6 +49,14 @@ interface SearchResults {
   error?: string
 }
 
+interface SearchParams {
+  activities: string[]
+  location: string
+  date: string
+  age_range: string
+  cost_range: string
+}
+
 // ---- STAR RATING COMPONENT ----
 // Renders a star rating visually e.g. ★★★★½ for 4.5
 function StarRating({ rating }: { rating: number }) {
@@ -63,6 +71,108 @@ function StarRating({ rating }: { rating: number }) {
       {'☆'.repeat(emptyStars)}
       <span className="text-base-content/60 ml-1">{rating}</span>
     </span>
+  )
+}
+
+// ---- SEARCH SUMMARY COMPONENT ----
+// Displays the search criteria as styled pills at the top of the results page
+// Activity pills have an X button to remove them and trigger a new search
+// Other criteria (location, date, ages, budget) are display only for now
+// X + dropdown swap for non-activity filters comes in v3.2.0
+interface SearchSummaryProps {
+  data: SearchResults
+  onRemoveActivity: (activity: string) => void
+}
+
+function SearchSummary({ data, onRemoveActivity }: SearchSummaryProps) {
+  // Parse the search summary string into individual fields
+  // Summary format: "Museums, Outdoor in London, Tuesday 20th May 2026, Ages all ages, Any budget"
+  const inIndex = data.search_summary.indexOf(' in ')
+
+  // Extract activities — everything before " in "
+  const activitiesStr = inIndex > -1
+    ? data.search_summary.substring(0, inIndex)
+    : data.search_summary
+  const activities = activitiesStr.split(',').map(s => s.trim()).filter(Boolean)
+
+  // Extract remaining fields — everything after " in ", split by comma
+  const afterIn = inIndex > -1 ? data.search_summary.substring(inIndex + 4) : ''
+  const location = afterIn.split(',')[0]?.trim() || ''
+  const date = afterIn.split(',')[1]?.trim() || ''
+  const ages = afterIn.split(',')[2]?.trim() || ''
+  const budget = afterIn.split(',')[3]?.trim() || ''
+
+  return (
+    <div className="card bg-base-100 shadow-sm border border-base-200 mb-6">
+      <div className="card-body py-4 px-5 gap-2">
+
+        {/* Activities row — pills have X button to remove and re-search */}
+        <div className="flex items-start gap-3">
+          <span className="text-sm text-base-content/50 w-36 shrink-0 pt-1">
+            What
+          </span>
+          <div className="flex flex-wrap gap-1">
+            {activities.map(activity => (
+              <span
+                key={activity}
+                className="badge badge-outline gap-1"
+              >
+                {activity}
+                {/* X button — removes this activity and triggers a new search */}
+                <button
+                  onClick={() => onRemoveActivity(activity)}
+                  className="text-base-content/40 hover:text-error ml-1"
+                  aria-label={`Remove ${activity}`}
+                >
+                  ✕
+                </button>
+              </span>
+            ))}
+          </div>
+        </div>
+
+        {/* Location row — display only, no X until v3.2.0 */}
+        {location && (
+          <div className="flex items-center gap-3">
+            <span className="text-sm text-base-content/50 w-36 shrink-0">
+              Where
+            </span>
+            <span className="badge badge-outline">{location}</span>
+          </div>
+        )}
+
+        {/* Date row — display only */}
+        {date && (
+          <div className="flex items-center gap-3">
+            <span className="text-sm text-base-content/50 w-36 shrink-0">
+              When
+            </span>
+            <span className="badge badge-outline">{date}</span>
+          </div>
+        )}
+
+        {/* Ages row — display only */}
+        {ages && (
+          <div className="flex items-center gap-3">
+            <span className="text-sm text-base-content/50 w-36 shrink-0">
+              Ages
+            </span>
+            <span className="badge badge-outline">{ages}</span>
+          </div>
+        )}
+
+        {/* Budget row — display only */}
+        {budget && (
+          <div className="flex items-center gap-3">
+            <span className="text-sm text-base-content/50 w-36 shrink-0">
+              Budget
+            </span>
+            <span className="badge badge-outline">{budget}</span>
+          </div>
+        )}
+
+      </div>
+    </div>
   )
 }
 
@@ -268,19 +378,77 @@ function Results() {
   const navigate = useNavigate()
 
   // Get the structured results passed from App.tsx via React Router state
-  const data = location.state?.result as SearchResults | undefined
+  const initialData = location.state?.result as SearchResults | undefined
+
+  // Get the original search parameters — needed to re-search when activities are removed
+  const initialSearchParams = location.state?.searchParams as SearchParams | undefined
 
   // Active tab — 'all', 'events' or 'venues'
   const [activeTab, setActiveTab] = useState<'all' | 'events' | 'venues'>('all')
 
+  // Track current results as state so they update when activities are removed
+  const [currentData, setCurrentData] = useState<SearchResults | undefined>(initialData)
+
+  // Track current search params as state so they update when activities are removed
+  const [currentSearchParams, setCurrentSearchParams] = useState<SearchParams | undefined>(initialSearchParams)
+
+  // Track whether a re-search is in progress after removing an activity
+  const [searching, setSearching] = useState(false)
+
+  // Handle removing an activity pill and re-searching with the remaining activities
+  // Called when user clicks X on an activity pill in the SearchSummary component
+  const handleRemoveActivity = async (activityToRemove: string) => {
+    if (!currentSearchParams) return
+
+    // Remove the selected activity from the list
+    const newActivities = currentSearchParams.activities.filter(a => a !== activityToRemove)
+
+    // If no activities remain navigate back to search page
+    if (newActivities.length === 0) {
+      navigate('/')
+      return
+    }
+
+    // Trigger a new search with the updated activities list
+    setSearching(true)
+    try {
+      const apiUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000'
+      const response = await fetch(`${apiUrl}/search`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        // Spread the existing params but override activities with the new list
+        body: JSON.stringify({
+          ...currentSearchParams,
+          activities: newActivities,
+        }),
+      })
+      const newData = await response.json()
+
+      // Update displayed results and search params in state
+      setCurrentData(newData)
+      const newParams = { ...currentSearchParams, activities: newActivities }
+      setCurrentSearchParams(newParams)
+
+      // Replace the current history entry so the back button still works correctly
+      navigate('/results', {
+        state: { result: newData, searchParams: newParams },
+        replace: true,
+      })
+    } catch (error) {
+      console.error('Re-search failed:', error)
+    } finally {
+      setSearching(false)
+    }
+  }
+
   // Handle error state — either a backend error or no data at all
-  if (!data || data.error) {
+  if (!currentData || currentData.error) {
     return (
       <div className="min-h-screen bg-base-200 flex items-center justify-center p-6">
         <div className="w-full max-w-2xl text-center">
           <h1 className="text-4xl font-black text-primary mb-4">Halfterm</h1>
           <p className="text-base-content/70 mb-6">
-            {data?.error || 'Sorry, something went wrong. Please try again.'}
+            {currentData?.error || 'Sorry, something went wrong. Please try again.'}
           </p>
           <button
             onClick={() => navigate('/')}
@@ -307,11 +475,23 @@ function Results() {
           <h2 className="text-xl font-semibold text-base-content mb-1">
             Here's what you can do...
           </h2>
-          {/* Search summary — shows what was searched */}
-          <p className="text-sm text-base-content/60">{data.search_summary}</p>
         </div>
 
-        {/* Top controls — update search left, events/venues toggle centre */}
+        {/* Search summary pills — shows what was searched */}
+        {/* Activity pills have X to remove and re-search, others display only */}
+        <SearchSummary
+          data={currentData}
+          onRemoveActivity={handleRemoveActivity}
+        />
+
+        {/* Updating results indicator — shown while re-search is in progress */}
+        {searching && (
+          <p className="text-sm text-base-content/40 animate-pulse text-center mb-4">
+            Updating results...
+          </p>
+        )}
+
+        {/* Top controls — update search left, events/venues toggle right */}
         <div className="flex items-center justify-between mb-6 gap-2">
 
           {/* Update search button — takes user back to the homepage */}
@@ -322,7 +502,7 @@ function Results() {
             ← Update search
           </button>
 
-          {/* Events / Venues toggle — filters which card type is shown */}
+          {/* Events / Venues / All toggle — filters which card type is shown */}
           <div className="join">
             <button
               className={`join-item btn btn-sm ${activeTab === 'all' ? 'btn-primary' : 'btn-outline'}`}
@@ -350,7 +530,7 @@ function Results() {
         <div className="flex flex-col gap-4">
 
           {/* Events section */}
-          {showEvents && data.events.length > 0 && (
+          {showEvents && currentData.events.length > 0 && (
             <>
               {/* Section label — only shown in 'all' tab */}
               {activeTab === 'all' && (
@@ -358,14 +538,14 @@ function Results() {
                   Events
                 </h3>
               )}
-              {data.events.map((event, index) => (
+              {currentData.events.map((event, index) => (
                 <EventCard key={index} event={event} />
               ))}
             </>
           )}
 
           {/* Venues section */}
-          {showVenues && data.venues.length > 0 && (
+          {showVenues && currentData.venues.length > 0 && (
             <>
               {/* Section label — only shown in 'all' tab */}
               {activeTab === 'all' && (
@@ -373,20 +553,20 @@ function Results() {
                   Venues
                 </h3>
               )}
-              {data.venues.map((venue, index) => (
+              {currentData.venues.map((venue, index) => (
                 <VenueCard key={index} venue={venue} />
               ))}
             </>
           )}
 
           {/* Empty states — shown when a tab has no results */}
-          {showEvents && data.events.length === 0 && activeTab === 'events' && (
+          {showEvents && currentData.events.length === 0 && activeTab === 'events' && (
             <div className="text-center py-12 text-base-content/50">
               No events found for your search. Try updating your search criteria.
             </div>
           )}
 
-          {showVenues && data.venues.length === 0 && activeTab === 'venues' && (
+          {showVenues && currentData.venues.length === 0 && activeTab === 'venues' && (
             <div className="text-center py-12 text-base-content/50">
               No venues found for your search. Try updating your search criteria.
             </div>
@@ -394,7 +574,7 @@ function Results() {
 
         </div>
 
-        {/* Bottom update search button — so user doesn't have to scroll back up */}
+        {/* Bottom update search button — so user doesn't have to scroll back to top */}
         <div className="mt-8 text-center">
           <button
             onClick={() => navigate('/')}

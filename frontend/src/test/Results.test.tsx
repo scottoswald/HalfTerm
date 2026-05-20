@@ -67,9 +67,16 @@ describe('Results component', () => {
     expect(screen.getAllByText('Halfterm').length).toBeGreaterThan(0)
   })
 
-  it('renders the search summary', () => {
+  it('renders the search summary pills', () => {
     renderResults({ result: MOCK_RESULT })
-    expect(screen.getByText(MOCK_RESULT.search_summary)).toBeInTheDocument()
+    // Check the summary labels are present
+    expect(screen.getByText('What')).toBeInTheDocument()
+    expect(screen.getByText('Where')).toBeInTheDocument()
+    expect(screen.getByText('When')).toBeInTheDocument()
+    expect(screen.getByText('Ages')).toBeInTheDocument()
+    expect(screen.getByText('Budget')).toBeInTheDocument()
+    // Check the activity pill with X button is present
+    expect(screen.getByLabelText('Remove Museums')).toBeInTheDocument()
   })
 
   it('renders event cards from the result', () => {
