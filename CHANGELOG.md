@@ -3,6 +3,19 @@
 All notable changes to Halfterm will be documented in this file.
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [3.3.0] - 2026-05-21
+
+### Added
+- Free text search field on homepage — works alongside activity grid
+- Users can type anything specific e.g. "go karting", "baking class", "dinosaur workshop"
+- Claude handles spelling mistakes and interprets intent naturally
+- free_text field added to SearchRequest model (optional, defaults to null)
+- Outsavvy developer account created — awaiting extended API access approval
+
+### Changed
+- agent.py updated to accept and use free_text parameter
+- SearchParams interface updated to include free_text field
+
 ## [3.2.0] - 2026-05-20
 
 ### Added
