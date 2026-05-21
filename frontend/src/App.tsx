@@ -67,6 +67,9 @@ function App() {
   const [ageRange, setAgeRange] = useState('all ages')
   // Default to 'any' so no budget restriction is applied unless user chooses one
   const [costRange, setCostRange] = useState('any')
+  // Optional free text search — works alongside the activity grid
+  // User can type anything specific e.g. "go karting" or "baking class"
+  const [freeText, setFreeText] = useState('')
   const [loading, setLoading] = useState(false)
   const [loadingMessage, setLoadingMessage] = useState('')
 
@@ -91,14 +94,17 @@ function App() {
       setLoadingMessage(LOADING_MESSAGES[messageIndex])
     }, 2000)
 
-    // Build the search params object — used in the fetch body and passed to Results
-    // Results.tsx needs these params to re-search when the user removes an activity pill
+    // Build the search params object
+    // Results.tsx needs these to re-search when the user removes an activity pill
     const searchParams = {
       activities: selectedActivities.length > 0 ? selectedActivities : ['family activities'],
       location,
       date,
       age_range: ageRange,
       cost_range: costRange,
+      // Only include free_text if the user typed something
+      // null tells the backend to ignore it
+      free_text: freeText.trim() || null,
     }
 
     try {
@@ -111,8 +117,6 @@ function App() {
       const response = await fetch(`${apiUrl}/search`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        // Pass all five search parameters as separate structured fields
-        // This matches the SearchRequest model in main.py
         body: JSON.stringify(searchParams),
       })
 
@@ -125,7 +129,6 @@ function App() {
     } catch (error) {
       console.error('Search failed:', error)
       // Navigate to results with a structured error object
-      // Results.tsx checks for the error field and shows a friendly message
       navigate('/results', {
         state: {
           result: {
@@ -189,6 +192,26 @@ function App() {
                   </button>
                 ))}
               </div>
+            </div>
+
+            {/* Free text search — optional, works alongside the activity grid */}
+            {/* Claude handles spelling mistakes and interprets the intent */}
+            <div>
+              <label className="label">
+                <span className="label-text font-semibold text-base">
+                  Looking for something specific?
+                </span>
+                <span className="label-text-alt text-base-content/50">
+                  Optional
+                </span>
+              </label>
+              <input
+                type="text"
+                className="input input-bordered w-full"
+                placeholder="e.g. go karting, baking class, dinosaur workshop..."
+                value={freeText}
+                onChange={e => setFreeText(e.target.value)}
+              />
             </div>
 
             {/* Location dropdown */}

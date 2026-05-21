@@ -37,7 +37,8 @@ def search(request: SearchRequest):
             location=request.location,
             date=resolved_date,
             age_range=request.age_range,
-            cost_range=request.cost_range
+            cost_range=request.cost_range,
+            free_text=request.free_text
         )
 
         logger.info("Search completed successfully")

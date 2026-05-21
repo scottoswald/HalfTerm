@@ -2,6 +2,7 @@ from dotenv import load_dotenv
 from langchain_anthropic import ChatAnthropic
 from langgraph.prebuilt import create_react_agent
 from tools import search_ticketmaster_events, search_google_places, search_eventbrite_events
+from typing import Optional
 import os
 import json
 import logging
@@ -37,9 +38,16 @@ tools = [search_ticketmaster_events, search_google_places, search_eventbrite_eve
 agent_executor = create_react_agent(llm, tools)
 
 # ---- THE RUN FUNCTION ----
-# This is the public interface of the agent — the only function main.py calls
-# It takes all five search parameters and builds a detailed query for Claude
-def run_agent(activities: list[str], location: str, date: str, age_range: str, cost_range: str) -> dict:
+# This is the public interface of the agent — the only function routes/search.py calls
+# It takes all search parameters and builds a detailed query for Claude
+def run_agent(
+    activities: list[str],
+    location: str,
+    date: str,
+    age_range: str,
+    cost_range: str,
+    free_text: Optional[str] = None
+) -> dict:
     # Join activities list into a readable string
     # e.g. ["Museums", "Outdoor Activities"] becomes "Museums, Outdoor Activities"
     activities_str = ", ".join(activities) if activities else "family activities"
@@ -48,8 +56,21 @@ def run_agent(activities: list[str], location: str, date: str, age_range: str, c
     # Keeping this fixed ensures consistency across all results
     keywords_list = "sibling friendly, dog friendly, accessible, parking nearby, café on site, book in advance, free cancellation, outdoor, indoor, rainy day, sunny day, drop in, booking required, gift shop, picnic area, photography allowed"
 
-    # Build the query asking Claude to return structured JSON
-    # We're very explicit about the format to ensure consistent parsing
+    # Build the free text instruction if the user typed something specific
+    # Claude handles spelling mistakes and interprets intent naturally
+    # This narrows results rather than replacing the structured criteria
+    free_text_instruction = ""
+    if free_text and free_text.strip():
+        free_text_instruction = f"""
+    - The user has also typed this specific search: "{free_text}"
+      Prioritise results that match this specific request.
+      Handle any spelling mistakes or ambiguous terms intelligently.
+      This should be used to narrow or refine the results, not replace the other criteria.
+    """
+
+    # Build the structured query from all parameters
+    # We explicitly tell Claude which parameters to pass to each tool
+    # and give clear classification rules for events vs venues
     query = f"""
     Find activities for kids in {location}.
 
@@ -58,7 +79,7 @@ def run_agent(activities: list[str], location: str, date: str, age_range: str, c
     - Date: {date}
     - Age range: {age_range}
     - Budget: {cost_range}
-
+    {free_text_instruction}
     Instructions:
     - When calling search_ticketmaster_events, pass location="{location}" and date="{date}"
     - When calling search_eventbrite_events, pass location="{location}", query="{activities_str}" and date="{date}"
@@ -133,16 +154,15 @@ def run_agent(activities: list[str], location: str, date: str, age_range: str, c
     """
 
     # Invoke the agent with the structured query
+    # The agent will reason through which tools to use and return a response
     result = agent_executor.invoke({"messages": [("human", query)]})
 
-    # Get Claude's response
+    # Get Claude's response text
     response_text = result["messages"][-1].content
 
     # Parse the JSON response
-    # Claude should return pure JSON but we strip any accidental whitespace
+    # Claude should return pure JSON but we strip any accidental markdown fences
     try:
-        # Sometimes Claude wraps JSON in ```json blocks despite instructions
-        # Strip those if present
         cleaned = response_text.strip()
         if cleaned.startswith("```"):
             cleaned = cleaned.split("```")[1]

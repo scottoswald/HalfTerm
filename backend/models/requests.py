@@ -1,4 +1,5 @@
 from pydantic import BaseModel
+from typing import Optional
 
 # ---- REQUEST MODELS ----
 # Pydantic models define the expected shape of incoming requests
@@ -17,3 +18,7 @@ class SearchRequest(BaseModel):
     age_range: str
     # Budget range e.g. "free", "under £10", "any"
     cost_range: str
+    # Optional free text search — user can type anything e.g. "go karting" or "baking class"
+    # Claude handles spelling mistakes and interprets the intent
+    # If provided this is passed to the agent alongside the structured params
+    free_text: Optional[str] = None

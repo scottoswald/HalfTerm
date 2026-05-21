@@ -58,4 +58,5 @@ export interface SearchParams {
   date: string
   age_range: string
   cost_range: string
+  free_text: string | null
 }
