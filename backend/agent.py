@@ -66,6 +66,12 @@ def run_agent(
       Prioritise results that match this specific request.
       Handle any spelling mistakes or ambiguous terms intelligently.
       This should be used to narrow or refine the results, not replace the other criteria.
+      IMPORTANT: If you cannot find results that genuinely match "{free_text}", do NOT
+      substitute unrelated results to pad the response. Instead return an empty events
+      array and explain in the search_summary what was searched for and that no matching
+      events were found. For venues, only include them if they are genuinely relevant
+      to "{free_text}". It is better to return fewer accurate results than many
+      irrelevant ones.
     """
 
     # Build the structured query from all parameters
