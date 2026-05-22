@@ -11,6 +11,34 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 - Claude handles spelling mistakes and interprets intent naturally
 - free_text field added to SearchRequest model (optional, defaults to null)
 - Outsavvy developer account created — awaiting extended API access approval
+- Activity grid expanded from 8 to 16 categories with subtitles
+- New categories: Attractions, Animals, Play & Explore, Thrills & Challenges, Fairs & Festivals, Swimming, Music, Gaming, Learning, Community
+- Category subtitles give context e.g. "Heritage, Galleries, Castles" under Museums
+- FilterPanel extracted into its own component file
+
+### Changed
+- agent.py updated to accept and use free_text parameter
+- SearchParams interface updated to include free_text field
+- Improved no results handling — Claude returns empty array rather than padding with unrelated results
+- Tighter category matching — Claude must only return genuinely matching results
+- Venues/Events toggle order swapped — Venues shown first
+- SearchSummary now uses searchParams directly instead of parsing Claude's summary string
+- Ages display fixed on cards — no longer shows redundant "Ages All ages"
+- Stale version references updated in comments
+
+### Fixed
+- Radio button conflict in FilterPanel when rendered in both sidebar and drawer
+- Search summary pills overflow fixed
+- Outdated image placeholder comments corrected
+
+## [3.3.0] - 2026-05-21
+
+### Added
+- Free text search field on homepage — works alongside activity grid
+- Users can type anything specific e.g. "go karting", "baking class", "dinosaur workshop"
+- Claude handles spelling mistakes and interprets intent naturally
+- free_text field added to SearchRequest model (optional, defaults to null)
+- Outsavvy developer account created — awaiting extended API access approval
 
 ### Changed
 - agent.py updated to accept and use free_text parameter
