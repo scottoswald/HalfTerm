@@ -3,6 +3,29 @@
 All notable changes to Halfterm will be documented in this file.
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [3.4.0] - 2026-05-22
+
+### Added
+- GPS location search — "Use my current location" button using browser Geolocation API
+- Works on mobile and desktop (Chrome, Safari, Firefox)
+- Postcode search — automatically looks up coordinates via Postcodes.io (free, no API key)
+- Radius selector — 1, 2, 5, 10, 20 miles (default 5 miles)
+- Quick pick city dropdown — shortcut to populate location search box
+- Free text location input — accepts any postcode, town, city or village
+- Coordinates passed to Google Places for more accurate radius-based results
+- latitude, longitude and radius_miles fields added to SearchRequest model
+
+### Changed
+- Location section redesigned — replaces city dropdown with full location search
+- google_places.py updated to use coordinates when available
+- agent.py updated to pass coordinates and radius to location instructions
+- SearchParams interface updated with latitude, longitude and radius_miles fields
+
+### Known limitations
+- Ticketmaster and Eventbrite still search by city name — full radius search coming in v3.4.0 part 2
+- Closest-to-furthest sort not yet implemented — coming in v3.4.0
+- Distance not shown on cards yet — coming in v3.4.0
+
 ## [3.3.0] - 2026-05-21
 
 ### Added
