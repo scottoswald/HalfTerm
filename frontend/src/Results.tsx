@@ -226,7 +226,7 @@ function Results() {
 
         {/* Search summary pills */}
         <SearchSummary
-          data={currentData}
+          searchParams={currentSearchParams}
           onRemoveActivity={handleRemoveActivity}
         />
 

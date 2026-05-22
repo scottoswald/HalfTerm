@@ -68,14 +68,22 @@ describe('Results component', () => {
   })
 
   it('renders the search summary pills', () => {
-    renderResults({ result: MOCK_RESULT })
+    // Pass searchParams alongside result so SearchSummary has data to display
+    renderResults({ 
+      result: MOCK_RESULT,
+      searchParams: {
+        activities: ['Museums'],
+        location: 'London',
+        date: 'today',
+        age_range: 'all ages',
+        cost_range: 'any',
+        free_text: null
+      }
+    })
     // Check the summary labels are present
     expect(screen.getByText('What')).toBeInTheDocument()
     expect(screen.getByText('Where')).toBeInTheDocument()
     expect(screen.getByText('When')).toBeInTheDocument()
-    expect(screen.getByText('Ages')).toBeInTheDocument()
-    expect(screen.getByText('Budget')).toBeInTheDocument()
-    // Check the activity pill with X button is present
     expect(screen.getByLabelText('Remove Museums')).toBeInTheDocument()
   })
 

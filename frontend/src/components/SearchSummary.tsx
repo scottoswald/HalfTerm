@@ -1,89 +1,118 @@
-import type { SearchResults } from '../types/index'
+import type { SearchParams } from '../types/index'
 
 // ---- SEARCH SUMMARY COMPONENT ----
 // Displays the search criteria as styled pills at the top of the results page
+// Uses searchParams directly rather than parsing Claude's summary string
+// This is more reliable since Claude's summary format can vary
 // Activity pills have an X button to remove them and trigger a new search
 // Other criteria (location, date, ages, budget) are display only for now
-// X + dropdown swap for non-activity filters comes in v3.2.0
+// X + dropdown swap for non-activity filters comes in v3.3.0
 
 interface SearchSummaryProps {
-  data: SearchResults
+  searchParams?: SearchParams
   onRemoveActivity: (activity: string) => void
 }
 
-function SearchSummary({ data, onRemoveActivity }: SearchSummaryProps) {
-  // Parse the search summary string into individual fields
-  // Summary format: "Museums, Outdoor in London, Tuesday 20th May 2026, Ages all ages, Any budget"
-  const inIndex = data.search_summary.indexOf(' in ')
+function SearchSummary({ searchParams, onRemoveActivity }: SearchSummaryProps) {
+  // Use searchParams directly for reliable field extraction
+  // Falls back gracefully if searchParams not provided
+  const activities = searchParams?.activities || []
+  const location = searchParams?.location || ''
+  const date = searchParams?.date || ''
+  const ages = searchParams?.age_range || ''
+  const budget = searchParams?.cost_range || ''
+  const freeText = searchParams?.free_text || ''
 
-  // Extract activities — everything before " in "
-  const activitiesStr = inIndex > -1
-    ? data.search_summary.substring(0, inIndex)
-    : data.search_summary
-  const activities = activitiesStr.split(',').map(s => s.trim()).filter(Boolean)
+  // Format the date for display — remove the resolved part in brackets if present
+  // e.g. "today (Wednesday 21st May 2026)" becomes "today (Wednesday 21st May 2026)"
+  // We show the full resolved date so users know exactly what was searched
+  const displayDate = date
 
-  // Extract remaining fields — everything after " in ", split by comma
-  const afterIn = inIndex > -1 ? data.search_summary.substring(inIndex + 4) : ''
-  const location = afterIn.split(',')[0]?.trim() || ''
-  const date = afterIn.split(',')[1]?.trim() || ''
-  const ages = afterIn.split(',')[2]?.trim() || ''
-  const budget = afterIn.split(',')[3]?.trim() || ''
+  // Format budget for display — capitalise first letter
+  const displayBudget = budget
+    ? budget.charAt(0).toUpperCase() + budget.slice(1)
+    : ''
+
+  // Format ages for display
+  const displayAges = ages
+    ? ages.charAt(0).toUpperCase() + ages.slice(1)
+    : ''
 
   return (
     <div className="card bg-base-100 shadow-sm border border-base-200 mb-6">
       <div className="card-body py-4 px-5 gap-2">
 
         {/* Activities row — pills have X button to remove and re-search */}
-        <div className="flex items-start gap-3">
-          <span className="text-sm text-base-content/50 w-36 shrink-0 pt-1">
-            What
-          </span>
-          <div className="flex flex-wrap gap-1">
-            {activities.map(activity => (
-              <span key={activity} className="badge badge-outline gap-1">
-                {activity}
-                {/* X button — removes this activity and triggers a new search */}
-                <button
-                  onClick={() => onRemoveActivity(activity)}
-                  className="text-base-content/40 hover:text-error ml-1"
-                  aria-label={`Remove ${activity}`}
-                >
-                  ✕
-                </button>
-              </span>
-            ))}
+        {activities.length > 0 && (
+          <div className="flex items-start gap-3">
+            <span className="text-sm text-base-content/50 w-36 shrink-0 pt-1">
+              What
+            </span>
+            <div className="flex flex-wrap gap-1">
+              {activities.map(activity => (
+                <span key={activity} className="badge badge-outline gap-1">
+                  {activity}
+                  {/* X button — removes this activity and triggers a new search */}
+                  <button
+                    onClick={() => onRemoveActivity(activity)}
+                    className="text-base-content/40 hover:text-error ml-1"
+                    aria-label={`Remove ${activity}`}
+                  >
+                    ✕
+                  </button>
+                </span>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
 
-        {/* Location row — display only, no X until v3.2.0 */}
+        {/* Free text row — only shown if user typed a specific search */}
+        {freeText && (
+          <div className="flex items-center gap-3">
+            <span className="text-sm text-base-content/50 w-36 shrink-0">
+              Search
+            </span>
+            <span className="badge badge-outline">{freeText}</span>
+          </div>
+        )}
+
+        {/* Location row — display only, no X until v3.3.0 */}
         {location && (
           <div className="flex items-center gap-3">
-            <span className="text-sm text-base-content/50 w-36 shrink-0">Where</span>
+            <span className="text-sm text-base-content/50 w-36 shrink-0">
+              Where
+            </span>
             <span className="badge badge-outline">{location}</span>
           </div>
         )}
 
         {/* Date row — display only */}
-        {date && (
+        {displayDate && (
           <div className="flex items-center gap-3">
-            <span className="text-sm text-base-content/50 w-36 shrink-0">When</span>
-            <span className="badge badge-outline">{date}</span>
+            <span className="text-sm text-base-content/50 w-36 shrink-0">
+              When
+            </span>
+            <span className="badge badge-outline">{displayDate}</span>
           </div>
         )}
 
         {/* Ages row — display only */}
-        {ages && (
+        {displayAges && (
           <div className="flex items-center gap-3">
-            <span className="text-sm text-base-content/50 w-36 shrink-0">Ages</span>
-            <span className="badge badge-outline">{ages}</span>
+            <span className="text-sm text-base-content/50 w-36 shrink-0">
+              Ages
+            </span>
+            <span className="badge badge-outline">{displayAges}</span>
           </div>
         )}
 
         {/* Budget row — display only */}
-        {budget && (
+        {displayBudget && (
           <div className="flex items-center gap-3">
-            <span className="text-sm text-base-content/50 w-36 shrink-0">Budget</span>
-            <span className="badge badge-outline">{budget}</span>
+            <span className="text-sm text-base-content/50 w-36 shrink-0">
+              Budget
+            </span>
+            <span className="badge badge-outline">{displayBudget}</span>
           </div>
         )}
 
