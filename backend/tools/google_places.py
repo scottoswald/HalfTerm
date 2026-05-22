@@ -1,10 +1,10 @@
 from langchain_core.tools import tool
+from typing import Optional
 import requests
 import os
 
-# Dictionary of UK city coordinates
-# Used to bias Google Places results towards the correct city
-# Falls back to London if the city isn't in our dictionary
+# Fallback coordinates for UK cities
+# Used when no GPS or postcode coordinates are provided
 UK_CITY_COORDINATES = {
     "London":     {"latitude": 51.5074, "longitude": -0.1278},
     "Manchester": {"latitude": 53.4808, "longitude": -2.2426},
@@ -23,27 +23,28 @@ UK_CITY_COORDINATES = {
 }
 
 @tool
-def search_google_places(query: str, location: str) -> str:
+def search_google_places(query: str, location: str, latitude: Optional[float] = None, longitude: Optional[float] = None, radius_miles: Optional[int] = 5) -> str:
     """
-    Search for family friendly venues, museums, parks and attractions in a UK city
+    Search for family friendly venues, museums, parks and attractions in a UK location
     using the Google Places API.
     Returns venue details including address, rating and website.
-    Use this tool to find permanent venues and attractions — museums, parks, 
+    Use this tool to find permanent venues and attractions — museums, parks,
     science centres, zoos, theatres and similar places families can visit.
     Always use this tool alongside Ticketmaster to provide venue information.
+    Accepts optional coordinates for more accurate radius-based searching.
     """
-    # Get the Google Places API key from environment variables
     api_key = os.getenv("GOOGLE_PLACES_API_KEY")
 
-    # Look up coordinates for the requested city
-    # Falls back to London if the city isn't in our dictionary
-    coords = UK_CITY_COORDINATES.get(location, UK_CITY_COORDINATES["London"])
+    # Use provided coordinates if available, otherwise look up city coordinates
+    # Convert radius from miles to metres for the API (1 mile = 1609 metres)
+    if latitude is not None and longitude is not None:
+        coords = {"latitude": latitude, "longitude": longitude}
+        radius_metres = (radius_miles or 5) * 1609
+    else:
+        coords = UK_CITY_COORDINATES.get(location, UK_CITY_COORDINATES["London"])
+        radius_metres = 10000  # Default 10km for city-based searches
 
     try:
-        # Places API (New) uses POST not GET
-        # X-Goog-Api-Key passes the API key in the header
-        # X-Goog-FieldMask tells Google exactly which fields to return
-        # Only requesting what we need keeps the response lean and fast
         response = requests.post(
             "https://places.googleapis.com/v1/places:searchText",
             headers={
@@ -51,36 +52,26 @@ def search_google_places(query: str, location: str) -> str:
                 "X-Goog-Api-Key": api_key,
                 "X-Goog-FieldMask": "places.displayName,places.formattedAddress,places.rating,places.websiteUri",
             },
-            # textQuery includes both the search term and city name
-            # locationBias nudges results towards the selected city
             json={
                 "textQuery": f"{query} {location}",
                 "locationBias": {
                     "circle": {
-                        # Use the dynamically looked up coordinates for the selected city
                         "center": coords,
-                        "radius": 10000.0  # 10km radius around city centre
+                        "radius": float(radius_metres)
                     }
                 }
             },
             timeout=10
         )
 
-        # raise_for_status() throws an error if the status code is 4xx or 5xx
         response.raise_for_status()
-
-        # Parse the JSON response into a Python dictionary
         data = response.json()
 
-        # If no places were found return a helpful message
         if "places" not in data:
             return f"No venues found in {location}."
 
-        # Build a readable string of venues — limit to 3 to keep response concise
         results = []
         for place in data["places"][:3]:
-            # .get() returns the default value if the key doesn't exist
-            # rather than throwing a KeyError
             name = place.get("displayName", {}).get("text", "Unknown")
             address = place.get("formattedAddress", "No address")
             rating = place.get("rating", "No rating")
@@ -90,7 +81,6 @@ def search_google_places(query: str, location: str) -> str:
                 f"- {name}\n  Address: {address}\n  Rating: {rating}/5\n  Website: {website}"
             )
 
-        # Join all venues into one string separated by blank lines
         return "\n\n".join(results)
 
     except requests.exceptions.Timeout:
@@ -103,8 +93,6 @@ def search_google_places(query: str, location: str) -> str:
         return f"Google Places returned an error: {str(e)}. Please try again shortly."
 
     except Exception as e:
-        # Log the full error for debugging but return a friendly message
         import logging
-        logger = logging.getLogger(__name__)
-        logger.error(f"Unexpected error in search_google_places: {str(e)}")
+        logging.getLogger(__name__).error(f"Unexpected error in search_google_places: {str(e)}")
         return "Something went wrong searching for venues. Please try again."

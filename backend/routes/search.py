@@ -4,8 +4,7 @@ from utils.date_resolver import resolve_date
 from agent import run_agent
 import logging
 
-# APIRouter is like a mini FastAPI app
-# It lets us define routes in separate files and register them in main.py
+# APIRouter lets us define routes in separate files and register them in main.py
 # Routes are defined with their full paths via decorators e.g. @router.post("/search")
 router = APIRouter()
 
@@ -28,14 +27,16 @@ def search(request: SearchRequest):
         # e.g. "this weekend" becomes "this weekend (Saturday 23rd May and Sunday 24th May 2026)"
         resolved_date = resolve_date(request.date)
 
-        # Log the full search request so we can monitor usage
         logger.info(f"Search request: {request.activities} in {request.location} on {resolved_date} for ages {request.age_range} budget {request.cost_range}")
 
-        # Run the AI agent with all six structured parameters
-        # activities, location, date, age_range, cost_range and optional free_text
+        # Run the AI agent with all search parameters
+        # Pass coordinates if available — tools use these for radius search
         result = run_agent(
             activities=request.activities,
             location=request.location,
+            latitude=request.latitude,
+            longitude=request.longitude,
+            radius_miles=request.radius_miles or 5,
             date=resolved_date,
             age_range=request.age_range,
             cost_range=request.cost_range,
@@ -43,24 +44,16 @@ def search(request: SearchRequest):
         )
 
         logger.info("Search completed successfully")
-
-        # Return the structured JSON result directly to the frontend
         return result
 
     except ValueError as e:
-        # ValueError means something was wrong with the input data
-        # 400 Bad Request tells the frontend the problem was with what it sent
         logger.error(f"ValueError in search: {str(e)}")
         raise HTTPException(status_code=400, detail="Invalid search parameters. Please try again.")
 
     except ConnectionError as e:
-        # ConnectionError means we couldn't reach one of the external APIs
-        # 503 Service Unavailable tells the frontend an external service is down
         logger.error(f"ConnectionError in search: {str(e)}")
         raise HTTPException(status_code=503, detail="Could not connect to external services. Please try again shortly.")
 
     except Exception as e:
-        # Catch all other unexpected errors
-        # 500 Internal Server Error is the standard response for unexpected failures
         logger.error(f"Unexpected error in search: {str(e)}")
         raise HTTPException(status_code=500, detail="Something went wrong. Please try again.")
