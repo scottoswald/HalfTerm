@@ -6,7 +6,7 @@ import type { SearchParams } from '../types/index'
 // This is more reliable since Claude's summary format can vary
 // Activity pills have an X button to remove them and trigger a new search
 // Other criteria (location, date, ages, budget) are display only for now
-// X + dropdown swap for non-activity filters comes in v3.3.0
+// X + dropdown swap for non-activity filters comes in a future version
 
 interface SearchSummaryProps {
   searchParams?: SearchParams
@@ -23,9 +23,8 @@ function SearchSummary({ searchParams, onRemoveActivity }: SearchSummaryProps) {
   const budget = searchParams?.cost_range || ''
   const freeText = searchParams?.free_text || ''
 
-  // Format the date for display — remove the resolved part in brackets if present
-  // e.g. "today (Wednesday 21st May 2026)" becomes "today (Wednesday 21st May 2026)"
-  // We show the full resolved date so users know exactly what was searched
+  // Show the full resolved date so users know exactly what was searched
+  // e.g. "today (Wednesday 21st May 2026)"
   const displayDate = date
 
   // Format budget for display — capitalise first letter
@@ -76,7 +75,7 @@ function SearchSummary({ searchParams, onRemoveActivity }: SearchSummaryProps) {
           </div>
         )}
 
-        {/* Location row — display only, no X until v3.3.0 */}
+        {/* Location row — display only, no X until dropdown swap is implemented */}
         {location && (
           <div className="flex items-center gap-3">
             <span className="text-sm text-base-content/50 w-36 shrink-0">

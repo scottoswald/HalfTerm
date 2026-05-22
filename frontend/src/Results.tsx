@@ -4,28 +4,11 @@ import type { SearchResults, SearchParams, Event, Venue } from './types'
 import EventCard from './components/EventCard'
 import VenueCard from './components/VenueCard'
 import SearchSummary from './components/SearchSummary'
+import FilterPanel from './components/FilterPanel'
 
 // ---- RESULTS PAGE ----
 // Thin orchestration layer — all card components live in src/components/
 // Filter and sort logic lives here since it affects the whole page layout
-
-// Sort options for the filter bar
-const SORT_OPTIONS = [
-  { label: 'Recommended', value: 'recommended' },
-  { label: 'Price: low to high', value: 'price_asc' },
-  { label: 'Price: high to low', value: 'price_desc' },
-  { label: 'Rating: high to low', value: 'rating_desc' },
-]
-
-// Cost filter options for the filter bar
-const COST_OPTIONS = [
-  { label: 'Any', value: 'any' },
-  { label: 'Free only', value: 'free' },
-  { label: 'Under £10', value: 'under_10' },
-  { label: '£10 - £25', value: '10_25' },
-  { label: '£25 - £50', value: '25_50' },
-  { label: '£50+', value: '50_plus' },
-]
 
 // Helper to extract a numeric cost from a cost string for sorting
 // e.g. "From £18" -> 18, "Free" -> 0, "Varies" -> 999
@@ -45,68 +28,6 @@ function matchesCostFilter(cost: string, filter: string): boolean {
   if (filter === '25_50') return amount >= 25 && amount <= 50
   if (filter === '50_plus') return amount >= 50
   return true
-}
-
-// ---- FILTER PANEL COMPONENT ----
-// Renders the sort and cost filter controls
-// Used in both the sidebar (desktop) and bottom drawer (mobile)
-interface FilterPanelProps {
-  sortBy: string
-  setSortBy: (value: string) => void
-  costFilter: string
-  setCostFilter: (value: string) => void
-  namePrefix?: string
-}
-
-function FilterPanel({ sortBy, setSortBy, costFilter, setCostFilter, namePrefix = '' }: FilterPanelProps) {
-  return (
-    <div className="flex flex-col gap-6">
-
-      {/* Sort by section */}
-      <div>
-        <h3 className="font-semibold text-sm text-base-content mb-3">Sort by</h3>
-        <div className="flex flex-col gap-2">
-          {SORT_OPTIONS.map(option => (
-            <label key={option.value} className="flex items-center gap-2 cursor-pointer">
-              {/* Radio input — only one sort option can be selected at a time */}
-              <input
-                type="radio"
-                name={`${namePrefix}sort`}
-                className="radio radio-primary radio-sm"
-                checked={sortBy === option.value}
-                onChange={() => setSortBy(option.value)}
-              />
-              <span className="text-sm">{option.label}</span>
-            </label>
-          ))}
-        </div>
-      </div>
-
-      {/* Divider */}
-      <div className="divider my-0" />
-
-      {/* Cost filter section */}
-      <div>
-        <h3 className="font-semibold text-sm text-base-content mb-3">Cost</h3>
-        <div className="flex flex-col gap-2">
-          {COST_OPTIONS.map(option => (
-            <label key={option.value} className="flex items-center gap-2 cursor-pointer">
-              {/* Radio input — only one cost filter can be selected at a time */}
-              <input
-                type="radio"
-                name={`${namePrefix}cost`}
-                className="radio radio-primary radio-sm"
-                checked={costFilter === option.value}
-                onChange={() => setCostFilter(option.value)}
-              />
-              <span className="text-sm">{option.label}</span>
-            </label>
-          ))}
-        </div>
-      </div>
-
-    </div>
-  )
 }
 
 // ---- MAIN RESULTS PAGE ----
@@ -237,7 +158,7 @@ function Results() {
           </p>
         )}
 
-        {/* Top controls — update search left, events/venues toggle centre, filter button right (mobile only) */}
+        {/* Top controls — update search left, venues/events toggle centre, filter button right (mobile only) */}
         <div className="flex items-center justify-between mb-6 gap-2">
 
           {/* Update search button */}

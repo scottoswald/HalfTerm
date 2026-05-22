@@ -74,6 +74,23 @@ def run_agent(
       irrelevant ones.
     """
 
+    # Build the category matching instruction
+    # This tells Claude to be strict about matching the selected categories
+    # rather than loosely interpreting them
+    category_instruction = f"""
+    IMPORTANT — Category matching rules:
+    The user selected these specific categories: {activities_str}
+    You MUST only return results that genuinely and specifically match these categories.
+    Do not include results that merely tangentially relate to the categories.
+    Examples of what NOT to do:
+    - If the user selected "Music", do not include sports events that happen to be at music venues
+    - If the user selected "Community", do not include large commercial events
+    - If the user selected "Gaming", do not include general entertainment venues
+    - If the user selected "Learning", do not include any activity that is merely fun without educational value
+    If you cannot find enough genuinely matching results, return fewer results rather than
+    padding with loosely related ones. Quality over quantity.
+    """
+
     # Build the structured query from all parameters
     # We explicitly tell Claude which parameters to pass to each tool
     # and give clear classification rules for events vs venues
@@ -86,6 +103,8 @@ def run_agent(
     - Age range: {age_range}
     - Budget: {cost_range}
     {free_text_instruction}
+    {category_instruction}
+
     Instructions:
     - When calling search_ticketmaster_events, pass location="{location}" and date="{date}"
     - When calling search_eventbrite_events, pass location="{location}", query="{activities_str}" and date="{date}"

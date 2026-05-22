@@ -6,7 +6,7 @@ import logging
 
 # APIRouter is like a mini FastAPI app
 # It lets us define routes in separate files and register them in main.py
-# prefix="/search" means all routes here are under /search
+# Routes are defined with their full paths via decorators e.g. @router.post("/search")
 router = APIRouter()
 
 logger = logging.getLogger(__name__)
@@ -31,7 +31,8 @@ def search(request: SearchRequest):
         # Log the full search request so we can monitor usage
         logger.info(f"Search request: {request.activities} in {request.location} on {resolved_date} for ages {request.age_range} budget {request.cost_range}")
 
-        # Run the AI agent with all five structured parameters
+        # Run the AI agent with all six structured parameters
+        # activities, location, date, age_range, cost_range and optional free_text
         result = run_agent(
             activities=request.activities,
             location=request.location,

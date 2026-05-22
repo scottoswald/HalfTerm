@@ -28,7 +28,7 @@ function EventCard({ event }: EventCardProps) {
           </span>
         </div>
 
-        {/* Placeholder image — replaced with real images in v3.2.0 */}
+        {/* Placeholder image — real images coming in a future version */}
         <div className="w-full h-40 bg-base-200 rounded-xl flex items-center justify-center">
           <span className="text-base-content/30 text-sm">📷 Image coming soon</span>
         </div>
@@ -45,7 +45,7 @@ function EventCard({ event }: EventCardProps) {
           </div>
           <div className="flex items-start gap-1">
             <span>👶</span>
-            <span className="text-base-content/70">Ages {event.age_range}</span>
+            <span className="text-base-content/70">{event.age_range}</span>
           </div>
           <div className="flex items-start gap-1">
             <span>🕐</span>
