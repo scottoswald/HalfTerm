@@ -110,6 +110,13 @@ def run_agent(
     - Only include results within the budget: {cost_range}
     - Return a maximum of 5 events and 5 venues
 
+    CRITICAL — Data integrity rules:
+    You MUST only return results that were explicitly returned by the tools you called.
+    Do NOT use your own knowledge to add venues or events that were not in the tool responses.
+    If the tools return fewer than 5 results, return fewer than 5 — never pad with extra results.
+    Never invent, supplement or add results from your training data.
+    Every result you return must have come directly from a tool response.
+
     IMPORTANT — Classification rules:
     A VENUE is a permanent place that families can visit. It exists year-round.
     Examples: museums, zoos, aquariums, theme parks, science centres, art galleries,
