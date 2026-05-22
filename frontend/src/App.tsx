@@ -2,8 +2,6 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 // Activity options — each has an emoji, label, subtitle and value to pass to the agent
-// Subtitle gives users more context about what each category covers
-// 16 categories in a 4x4 grid
 const ACTIVITIES = [
   { emoji: '🏛️', label: 'Museums', subtitle: 'Heritage, Galleries, Castles', value: 'Museums' },
   { emoji: '🎢', label: 'Attractions', subtitle: 'Theme Parks, Visitor Centres, Rides', value: 'Attractions' },
@@ -23,12 +21,15 @@ const ACTIVITIES = [
   { emoji: '🤝', label: 'Community', subtitle: 'Local Clubs, Youth Groups, Volunteering', value: 'Community' },
 ]
 
-// UK cities for the location dropdown
-const LOCATIONS = [
+// Quick pick cities — shown as a dropdown shortcut below the location search box
+const QUICK_PICK_CITIES = [
   'London', 'Manchester', 'Birmingham', 'Leeds', 'Edinburgh',
   'Glasgow', 'Bristol', 'Cardiff', 'Liverpool', 'Newcastle',
   'Brighton', 'Oxford', 'Cambridge', 'Bath',
 ]
+
+// Radius options in miles — shown as toggle buttons below the location search box
+const RADIUS_OPTIONS = [1, 2, 5, 10, 20]
 
 // Date options to pass to the agent
 const DATES = [
@@ -49,7 +50,6 @@ const AGE_RANGES = [
 ]
 
 // Cost range options — passed to the agent to filter results
-// 'any' is the default — means no budget restriction
 const COST_RANGES = [
   { label: 'Any Budget', value: 'any' },
   { label: 'Free only', value: 'free' },
@@ -67,24 +67,31 @@ const LOADING_MESSAGES = [
   'Almost there...',
 ]
 
+// Check if a string looks like a UK postcode
+// Used to decide whether to look up coordinates via Postcodes.io
+function looksLikePostcode(value: string): boolean {
+  return /^[A-Z]{1,2}\d[A-Z\d]?\s*\d[A-Z]{2}$/i.test(value.trim())
+}
+
 function App() {
   const navigate = useNavigate()
 
-  // selectedActivities is an array because users can pick multiple
   const [selectedActivities, setSelectedActivities] = useState<string[]>([])
-  const [location, setLocation] = useState('London')
+
+  // Location state — text input, optional GPS coordinates, and radius
+  const [locationText, setLocationText] = useState('')
+  const [latitude, setLatitude] = useState<number | null>(null)
+  const [longitude, setLongitude] = useState<number | null>(null)
+  const [radiusMiles, setRadiusMiles] = useState(5)
+  const [locationStatus, setLocationStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle')
+
   const [date, setDate] = useState('today')
   const [ageRange, setAgeRange] = useState('all ages')
-  // Default to 'any' so no budget restriction is applied unless user chooses one
   const [costRange, setCostRange] = useState('any')
-  // Optional free text search — works alongside the activity grid
-  // User can type anything specific e.g. "go karting" or "baking class"
   const [freeText, setFreeText] = useState('')
   const [loading, setLoading] = useState(false)
   const [loadingMessage, setLoadingMessage] = useState('')
 
-  // Toggle an activity on or off when clicked
-  // If it's already selected, remove it. If not, add it.
   const toggleActivity = (value: string) => {
     setSelectedActivities(prev =>
       prev.includes(value)
@@ -93,10 +100,82 @@ function App() {
     )
   }
 
-  const handleSearch = async () => {
-    setLoading(true)
+  // Request GPS location from the browser
+  // Works on mobile and desktop — browser will ask for permission
+  const handleUseCurrentLocation = () => {
+    if (!navigator.geolocation) {
+      setLocationStatus('error')
+      return
+    }
+    setLocationStatus('loading')
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        // GPS success — store coordinates and update display text
+        setLatitude(position.coords.latitude)
+        setLongitude(position.coords.longitude)
+        setLocationText('Current location')
+        setLocationStatus('success')
+      },
+      () => {
+        // GPS failed — user denied permission or location unavailable
+        setLocationStatus('error')
+        setLatitude(null)
+        setLongitude(null)
+      }
+    )
+  }
 
-    // Cycle through loading messages every 2 seconds while the agent works
+  // Look up postcode coordinates via Postcodes.io (free UK postcode API, no key needed)
+  // Called when user types something that looks like a UK postcode
+  const lookupPostcode = async (postcode: string): Promise<{ lat: number; lng: number } | null> => {
+    try {
+      const response = await fetch(`https://api.postcodes.io/postcodes/${encodeURIComponent(postcode)}`)
+      const data = await response.json()
+      if (data.status === 200) {
+        return { lat: data.result.latitude, lng: data.result.longitude }
+      }
+      return null
+    } catch {
+      return null
+    }
+  }
+
+  // Handle location text input changes
+  // If it looks like a postcode, look up coordinates automatically
+  const handleLocationChange = async (value: string) => {
+    setLocationText(value)
+    // Clear GPS coordinates when user types manually
+    setLatitude(null)
+    setLongitude(null)
+    setLocationStatus('idle')
+
+    // Auto-lookup if it looks like a postcode
+    if (looksLikePostcode(value)) {
+      const coords = await lookupPostcode(value)
+      if (coords) {
+        setLatitude(coords.lat)
+        setLongitude(coords.lng)
+        setLocationStatus('success')
+      }
+    }
+  }
+
+  // Handle quick pick city selection — populates text box and clears GPS
+  const handleQuickPickCity = (city: string) => {
+    setLocationText(city)
+    setLatitude(null)
+    setLongitude(null)
+    setLocationStatus('idle')
+  }
+
+  const handleSearch = async () => {
+    // Require at least a location before searching
+    if (!locationText.trim()) {
+      alert('Please enter a location or use your current location')
+      return
+    }
+
+    setLoading(true)
     let messageIndex = 0
     setLoadingMessage(LOADING_MESSAGES[0])
     const messageInterval = setInterval(() => {
@@ -104,41 +183,31 @@ function App() {
       setLoadingMessage(LOADING_MESSAGES[messageIndex])
     }, 2000)
 
-    // Build the search params object
-    // Results.tsx needs these to re-search when the user removes an activity pill
     const searchParams = {
       activities: selectedActivities.length > 0 ? selectedActivities : ['family activities'],
-      location,
+      location: locationText.trim(),
+      // Pass coordinates if available (GPS or postcode lookup)
+      // Backend uses these for radius search instead of just city name
+      latitude: latitude,
+      longitude: longitude,
+      radius_miles: radiusMiles,
       date,
       age_range: ageRange,
       cost_range: costRange,
-      // Only include free_text if the user typed something
-      // null tells the backend to ignore it
       free_text: freeText.trim() || null,
     }
 
     try {
-      // VITE_BACKEND_URL controls which backend URL to use:
-      // - Set to '/api' in Docker — routes through nginx reverse proxy
-      // - Unset locally — falls back to localhost:8000 directly
-      // - Set to a full URL (e.g. for Railway) — uses that URL directly
       const apiUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000'
-
       const response = await fetch(`${apiUrl}/search`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(searchParams),
       })
-
       const data = await response.json()
-
-      // Navigate to results page passing both the result and the search params
-      // searchParams is needed by Results.tsx to re-search when activities are removed
       navigate('/results', { state: { result: data, searchParams } })
-
     } catch (error) {
       console.error('Search failed:', error)
-      // Navigate to results with a structured error object
       navigate('/results', {
         state: {
           result: {
@@ -151,16 +220,12 @@ function App() {
         }
       })
     } finally {
-      // Always clear the interval and reset loading state
-      // whether the search succeeded or failed
       clearInterval(messageInterval)
       setLoading(false)
     }
   }
 
   return (
-    // min-h-screen makes the background fill the whole screen
-    // bg-base-200 is a Daisy UI class for a soft background colour
     <div className="min-h-screen bg-base-200 flex items-center justify-center p-6">
       <div className="w-full max-w-2xl">
 
@@ -170,11 +235,10 @@ function App() {
           <p className="text-base-content/70 text-lg">Find things to do with your kids</p>
         </div>
 
-        {/* Search card — card and card-body are Daisy UI classes */}
         <div className="card bg-base-100 shadow-xl">
           <div className="card-body gap-6">
 
-            {/* Activity grid — multi select, 4x4 grid */}
+            {/* Activity grid */}
             <div>
               <label className="label">
                 <span className="label-text font-semibold text-base">
@@ -184,13 +248,11 @@ function App() {
                   Pick one or more
                 </span>
               </label>
-              {/* Grid of clickable activity buttons — selected ones turn primary orange */}
               <div className="grid grid-cols-4 gap-2">
                 {ACTIVITIES.map(activity => (
                   <button
                     key={activity.value}
                     onClick={() => toggleActivity(activity.value)}
-                    // btn-primary applies when selected, btn-outline when not
                     className={`btn btn-sm flex-col h-auto py-3 gap-0.5 ${
                       selectedActivities.includes(activity.value)
                         ? 'btn-primary'
@@ -199,7 +261,6 @@ function App() {
                   >
                     <span className="text-xl">{activity.emoji}</span>
                     <span className="text-xs font-semibold">{activity.label}</span>
-                    {/* Subtitle gives context about what the category covers */}
                     <span className="text-[9px] opacity-60 leading-tight text-center">
                       {activity.subtitle}
                     </span>
@@ -208,16 +269,13 @@ function App() {
               </div>
             </div>
 
-            {/* Free text search — optional, works alongside the activity grid */}
-            {/* Claude handles spelling mistakes and interprets the intent */}
+            {/* Free text search */}
             <div>
               <label className="label">
                 <span className="label-text font-semibold text-base">
                   Looking for something specific?
                 </span>
-                <span className="label-text-alt text-base-content/50">
-                  Optional
-                </span>
+                <span className="label-text-alt text-base-content/50">Optional</span>
               </label>
               <input
                 type="text"
@@ -228,26 +286,75 @@ function App() {
               />
             </div>
 
-            {/* Location dropdown */}
+            {/* Location section */}
             <div>
               <label className="label">
                 <span className="label-text font-semibold text-base">Where?</span>
               </label>
-              <select
-                className="select select-bordered w-full"
-                value={location}
-                onChange={e => setLocation(e.target.value)}
+
+              {/* Use current location button */}
+              {/* Browser Geolocation API works on both mobile and desktop */}
+              <button
+                className={`btn btn-outline btn-block mb-3 ${locationStatus === 'loading' ? 'loading' : ''}`}
+                onClick={handleUseCurrentLocation}
+                disabled={locationStatus === 'loading'}
               >
-                {LOCATIONS.map(city => (
-                  <option key={city} value={city}>{city}</option>
-                ))}
-              </select>
+                {locationStatus === 'loading' && '⏳ Getting location...'}
+                {locationStatus === 'success' && latitude !== null && locationText === 'Current location' && '📍 Using current location ✓'}
+                {locationStatus === 'error' && '❌ Location unavailable — please type below'}
+                {locationStatus === 'idle' && '📍 Use my current location'}
+              </button>
+
+              {/* Location text input — accepts postcode, town, city or village */}
+              {/* Automatically looks up coordinates when a valid postcode is entered */}
+              <input
+                type="text"
+                className="input input-bordered w-full mb-3"
+                placeholder="Type a postcode, town, city or village..."
+                value={locationText === 'Current location' ? '' : locationText}
+                onChange={e => handleLocationChange(e.target.value)}
+              />
+
+              {/* Radius selector — shown as toggle buttons */}
+              <div className="flex items-center gap-2 mb-3">
+                <span className="text-sm text-base-content/60 shrink-0">Within:</span>
+                <div className="flex gap-1 flex-wrap">
+                  {RADIUS_OPTIONS.map(miles => (
+                    <button
+                      key={miles}
+                      onClick={() => setRadiusMiles(miles)}
+                      className={`btn btn-xs ${radiusMiles === miles ? 'btn-primary' : 'btn-outline'}`}
+                    >
+                      {miles}mi
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Quick pick city dropdown — shortcut to populate the text box */}
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-base-content/60 shrink-0">
+                  Or quick pick a city:
+                </span>
+                <select
+                  className="select select-bordered select-sm flex-1"
+                  value=""
+                  onChange={e => {
+                    if (e.target.value) handleQuickPickCity(e.target.value)
+                  }}
+                >
+                  <option value="" disabled>Select a city...</option>
+                  {QUICK_PICK_CITIES.map(city => (
+                    <option key={city} value={city}>{city}</option>
+                  ))}
+                </select>
+              </div>
+
             </div>
 
-            {/* Date, age range and cost range in a three column row */}
+            {/* Date, age range and cost range */}
             <div className="grid grid-cols-3 gap-4">
 
-              {/* Date dropdown */}
               <div>
                 <label className="label">
                   <span className="label-text font-semibold">When?</span>
@@ -263,7 +370,6 @@ function App() {
                 </select>
               </div>
 
-              {/* Age range dropdown */}
               <div>
                 <label className="label">
                   <span className="label-text font-semibold">Ages?</span>
@@ -279,7 +385,6 @@ function App() {
                 </select>
               </div>
 
-              {/* Cost range dropdown */}
               <div>
                 <label className="label">
                   <span className="label-text font-semibold">Budget?</span>
@@ -296,7 +401,7 @@ function App() {
               </div>
             </div>
 
-            {/* Search button — disabled while loading to prevent double submits */}
+            {/* Search button */}
             <button
               className="btn btn-primary btn-block btn-lg mt-2"
               onClick={handleSearch}

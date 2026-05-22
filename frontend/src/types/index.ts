@@ -3,7 +3,7 @@
 // Centralising types here means they can be imported by any component
 // rather than being duplicated across files
 
-// Represents a live ticketed event e.g. a show, workshop or attraction
+// Represents a live ticketed event e.g. a show, workshop or performance
 export interface Event {
   type: 'event'
   name: string
@@ -55,6 +55,12 @@ export interface SearchResults {
 export interface SearchParams {
   activities: string[]
   location: string
+  // Optional GPS or postcode-derived coordinates
+  // Used for radius search — more accurate than city name alone
+  latitude: number | null
+  longitude: number | null
+  // Search radius in miles — default 5
+  radius_miles: number
   date: string
   age_range: string
   cost_range: string

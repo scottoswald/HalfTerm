@@ -2,17 +2,11 @@ import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import App from '../App'
+import userEvent from '@testing-library/user-event'
 
 // Mock the fetch function so tests don't make real API calls
 // vi.fn() creates a fake function we can control in tests
 vi.stubGlobal('fetch', vi.fn())
-
-// Helper function that sets up a fake successful API response
-const mockSuccessfulSearch = () => {
-  (fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
-    json: async () => ({ result: 'Some museum activities for kids' }),
-  })
-}
 
 describe('App component', () => {
 
@@ -52,18 +46,17 @@ describe('App component', () => {
     expect(screen.getByText('Community')).toBeInTheDocument()
   })
 
-  it('renders all location options in the dropdown', () => {
+  it('renders the location section correctly', () => {
     render(
       <MemoryRouter>
         <App />
       </MemoryRouter>
     )
-
-    // Check a selection of cities are present
-    expect(screen.getByText('London')).toBeInTheDocument()
-    expect(screen.getByText('Manchester')).toBeInTheDocument()
-    expect(screen.getByText('Birmingham')).toBeInTheDocument()
-    expect(screen.getByText('Edinburgh')).toBeInTheDocument()
+    // Check the location input and current location button are present
+    expect(screen.getByPlaceholderText('Type a postcode, town, city or village...')).toBeInTheDocument()
+    expect(screen.getByText('📍 Use my current location')).toBeInTheDocument()
+    // Check the quick pick dropdown is present
+    expect(screen.getByText('Or quick pick a city:')).toBeInTheDocument()
   })
 
   it('renders date, age and budget dropdowns', () => {
@@ -95,7 +88,9 @@ describe('App component', () => {
   })
 
   it('shows loading message when search button is clicked', async () => {
-    mockSuccessfulSearch()
+    // Mock fetch to return a pending promise that never resolves
+    // This keeps the loading state active so we can check it
+    ;(fetch as ReturnType<typeof vi.fn>).mockImplementation(() => new Promise(() => {}))
 
     render(
       <MemoryRouter>
@@ -103,16 +98,21 @@ describe('App component', () => {
       </MemoryRouter>
     )
 
-    fireEvent.click(screen.getByText('Search'))
+    const locationInput = screen.getByPlaceholderText('Type a postcode, town, city or village...')
+    await userEvent.type(locationInput, 'London')
 
-    // The first loading message should appear after clicking
+    const searchButton = screen.getByRole('button', { name: /search/i })
+    await userEvent.click(searchButton)
+
     await waitFor(() => {
       expect(screen.getByText('Searching for activities...')).toBeInTheDocument()
     })
   })
 
   it('disables search button while loading', async () => {
-    mockSuccessfulSearch()
+    // Mock fetch to return a pending promise that never resolves
+    // This keeps the loading state active so we can check the button is disabled
+    ;(fetch as ReturnType<typeof vi.fn>).mockImplementation(() => new Promise(() => {}))
 
     render(
       <MemoryRouter>
@@ -120,10 +120,12 @@ describe('App component', () => {
       </MemoryRouter>
     )
 
-    const searchButton = screen.getByText('Search')
-    fireEvent.click(searchButton)
+    const locationInput = screen.getByPlaceholderText('Type a postcode, town, city or village...')
+    await userEvent.type(locationInput, 'London')
 
-    // Button should be disabled while the search is in progress
+    const searchButton = screen.getByRole('button', { name: /search/i })
+    await userEvent.click(searchButton)
+
     await waitFor(() => {
       expect(screen.getByRole('button', { name: /searching/i })).toBeDisabled()
     })
