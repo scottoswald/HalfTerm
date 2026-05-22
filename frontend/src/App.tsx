@@ -1,16 +1,26 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
-// Activity options — each has an emoji, label and value to pass to the agent
+// Activity options — each has an emoji, label, subtitle and value to pass to the agent
+// Subtitle gives users more context about what each category covers
+// 16 categories in a 4x4 grid
 const ACTIVITIES = [
-  { emoji: '🏛️', label: 'Museums', value: 'Museums' },
-  { emoji: '🎡', label: 'Theme Parks', value: 'Theme Parks' },
-  { emoji: '🌳', label: 'Outdoor', value: 'Outdoor Activities' },
-  { emoji: '⚽', label: 'Sports', value: 'Sports Events' },
-  { emoji: '🎭', label: 'Theatre', value: 'Theatre and Shows' },
-  { emoji: '🎨', label: 'Arts & Crafts', value: 'Arts and Crafts' },
-  { emoji: '🔬', label: 'Science', value: 'Science and Technology' },
-  { emoji: '🦁', label: 'Zoos', value: 'Zoos and Wildlife' },
+  { emoji: '🏛️', label: 'Museums', subtitle: 'Heritage, Galleries, Castles', value: 'Museums' },
+  { emoji: '🎢', label: 'Attractions', subtitle: 'Theme Parks, Visitor Centres, Rides', value: 'Attractions' },
+  { emoji: '🌳', label: 'Outdoors', subtitle: 'Parks, Nature, Beaches', value: 'Outdoors' },
+  { emoji: '⚽', label: 'Sports', subtitle: 'Matches, Classes, Activities', value: 'Sports' },
+  { emoji: '🎭', label: 'Theatre & Shows', subtitle: 'Performances, Pantomime, Circus', value: 'Theatre and Shows' },
+  { emoji: '🎨', label: 'Arts & Crafts', subtitle: 'Making, Painting, Pottery', value: 'Arts and Crafts' },
+  { emoji: '🔬', label: 'Science & Tech', subtitle: 'Experiments, Coding, Robots', value: 'Science and Technology' },
+  { emoji: '🦁', label: 'Animals', subtitle: 'Zoos, Farms, Aquariums', value: 'Animals' },
+  { emoji: '🛝', label: 'Play & Explore', subtitle: 'Playgrounds, Soft Play, Trampolines', value: 'Play and Explore' },
+  { emoji: '🏁', label: 'Thrills & Challenges', subtitle: 'Go Karting, Climbing, Escape Rooms', value: 'Thrills and Challenges' },
+  { emoji: '🎪', label: 'Fairs & Festivals', subtitle: 'Fairs, Markets, Carnivals', value: 'Fairs and Festivals' },
+  { emoji: '🏊', label: 'Swimming', subtitle: 'Pools, Lidos, Water Parks', value: 'Swimming' },
+  { emoji: '🎵', label: 'Music', subtitle: 'Concerts, Workshops, Sing-alongs', value: 'Music' },
+  { emoji: '🎮', label: 'Gaming', subtitle: 'Arcades, VR, Board Game Cafés', value: 'Gaming' },
+  { emoji: '📚', label: 'Learning', subtitle: 'Workshops, Discovery Centres, Educational Visits', value: 'Learning' },
+  { emoji: '🤝', label: 'Community', subtitle: 'Local Clubs, Youth Groups, Volunteering', value: 'Community' },
 ]
 
 // UK cities for the location dropdown
@@ -164,7 +174,7 @@ function App() {
         <div className="card bg-base-100 shadow-xl">
           <div className="card-body gap-6">
 
-            {/* Activity grid — multi select */}
+            {/* Activity grid — multi select, 4x4 grid */}
             <div>
               <label className="label">
                 <span className="label-text font-semibold text-base">
@@ -181,14 +191,18 @@ function App() {
                     key={activity.value}
                     onClick={() => toggleActivity(activity.value)}
                     // btn-primary applies when selected, btn-outline when not
-                    className={`btn btn-sm flex-col h-auto py-3 gap-1 ${
+                    className={`btn btn-sm flex-col h-auto py-3 gap-0.5 ${
                       selectedActivities.includes(activity.value)
                         ? 'btn-primary'
                         : 'btn-outline'
                     }`}
                   >
                     <span className="text-xl">{activity.emoji}</span>
-                    <span className="text-xs">{activity.label}</span>
+                    <span className="text-xs font-semibold">{activity.label}</span>
+                    {/* Subtitle gives context about what the category covers */}
+                    <span className="text-[9px] opacity-60 leading-tight text-center">
+                      {activity.subtitle}
+                    </span>
                   </button>
                 ))}
               </div>

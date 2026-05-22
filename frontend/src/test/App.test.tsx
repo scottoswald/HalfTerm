@@ -35,22 +35,21 @@ describe('App component', () => {
     expect(screen.getByText('Search')).toBeInTheDocument()
   })
 
-  it('renders activity grid with all 8 activities', () => {
+  it('renders activity grid with all 16 activities', () => {
     render(
       <MemoryRouter>
         <App />
       </MemoryRouter>
     )
-
-    // Check all 8 activity buttons are present in the grid
+    // Check a sample of the 16 activity buttons are present
     expect(screen.getByText('Museums')).toBeInTheDocument()
-    expect(screen.getByText('Theme Parks')).toBeInTheDocument()
-    expect(screen.getByText('Outdoor')).toBeInTheDocument()
+    expect(screen.getByText('Attractions')).toBeInTheDocument()
+    expect(screen.getByText('Outdoors')).toBeInTheDocument()
     expect(screen.getByText('Sports')).toBeInTheDocument()
-    expect(screen.getByText('Theatre')).toBeInTheDocument()
-    expect(screen.getByText('Arts & Crafts')).toBeInTheDocument()
-    expect(screen.getByText('Science')).toBeInTheDocument()
-    expect(screen.getByText('Zoos')).toBeInTheDocument()
+    expect(screen.getByText('Animals')).toBeInTheDocument()
+    expect(screen.getByText('Swimming')).toBeInTheDocument()
+    expect(screen.getByText('Gaming')).toBeInTheDocument()
+    expect(screen.getByText('Community')).toBeInTheDocument()
   })
 
   it('renders all location options in the dropdown', () => {

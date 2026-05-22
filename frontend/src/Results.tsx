@@ -254,16 +254,16 @@ function Results() {
               All
             </button>
             <button
-              className={`join-item btn btn-sm ${activeTab === 'events' ? 'btn-primary' : 'btn-outline'}`}
-              onClick={() => setActiveTab('events')}
-            >
-              Events
-            </button>
-            <button
               className={`join-item btn btn-sm ${activeTab === 'venues' ? 'btn-primary' : 'btn-outline'}`}
               onClick={() => setActiveTab('venues')}
             >
               Venues
+            </button>
+            <button
+              className={`join-item btn btn-sm ${activeTab === 'events' ? 'btn-primary' : 'btn-outline'}`}
+              onClick={() => setActiveTab('events')}
+            >
+              Events
             </button>
           </div>
 
@@ -302,20 +302,6 @@ function Results() {
           {/* ---- RESULTS COLUMN ---- */}
           <div className="flex flex-col gap-4">
 
-            {/* Events section */}
-            {showEvents && filteredEvents.length > 0 && (
-              <>
-                {activeTab === 'all' && (
-                  <h3 className="font-semibold text-base-content/70 text-sm uppercase tracking-wide">
-                    Events
-                  </h3>
-                )}
-                {filteredEvents.map((event: Event, index: number) => (
-                  <EventCard key={index} event={event} />
-                ))}
-              </>
-            )}
-
             {/* Venues section */}
             {showVenues && filteredVenues.length > 0 && (
               <>
@@ -326,6 +312,20 @@ function Results() {
                 )}
                 {filteredVenues.map((venue: Venue, index: number) => (
                   <VenueCard key={index} venue={venue} />
+                ))}
+              </>
+            )}
+
+            {/* Events section */}
+            {showEvents && filteredEvents.length > 0 && (
+              <>
+                {activeTab === 'all' && (
+                  <h3 className="font-semibold text-base-content/70 text-sm uppercase tracking-wide">
+                    Events
+                  </h3>
+                )}
+                {filteredEvents.map((event: Event, index: number) => (
+                  <EventCard key={index} event={event} />
                 ))}
               </>
             )}
