@@ -9,7 +9,6 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-# Load environment variables from .env file before anything else runs
 load_dotenv()
 
 # ---- THE MODEL ----
@@ -46,17 +45,19 @@ def run_agent(
 
     keywords_list = "sibling friendly, dog friendly, accessible, parking nearby, café on site, book in advance, free cancellation, outdoor, indoor, rainy day, sunny day, drop in, booking required, gift shop, picnic area, photography allowed"
 
-    # Build location instruction — use coordinates if available for more accurate radius search
+    # Build location instruction — pass coordinates to all three tools when available
+    # All three tools now accept optional lat/lng for radius-based searching
     if latitude is not None and longitude is not None:
         location_instruction = f"""
     - Location: {location} (coordinates: {latitude:.4f}, {longitude:.4f})
     - Search radius: {radius_miles} miles from these coordinates
-    - When calling search_ticketmaster_events, pass location="{location}" and date="{date}"
-    - When calling search_eventbrite_events, pass location="{location}", query="{activities_str}" and date="{date}"
-    - When calling search_google_places, pass query="{activities_str}" and location="{location}"
+    - When calling search_ticketmaster_events, pass location="{location}", date="{date}", latitude={latitude}, longitude={longitude}, radius_miles={radius_miles}
+    - When calling search_eventbrite_events, pass location="{location}", query="{activities_str}", date="{date}", latitude={latitude}, longitude={longitude}, radius_miles={radius_miles}
+    - When calling search_google_places, pass query="{activities_str}", location="{location}", latitude={latitude}, longitude={longitude}, radius_miles={radius_miles}
     - Prioritise results within {radius_miles} miles of the coordinates ({latitude:.4f}, {longitude:.4f})
     """
     else:
+        # No coordinates — fall back to city name search
         location_instruction = f"""
     - Location: {location}
     - When calling search_ticketmaster_events, pass location="{location}" and date="{date}"
@@ -77,7 +78,7 @@ def run_agent(
       search_summary. It is better to return fewer accurate results than many irrelevant ones.
     """
 
-    # Category matching instruction
+    # Category matching instruction — ensures Claude only returns relevant results
     category_instruction = f"""
     IMPORTANT — Category matching rules:
     The user selected these specific categories: {activities_str}
