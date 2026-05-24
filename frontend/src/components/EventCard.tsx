@@ -19,13 +19,23 @@ function EventCard({ event }: EventCardProps) {
     <div className="card bg-base-100 shadow-md border border-base-200">
       <div className="card-body gap-3">
 
-        {/* Card header — name and cost badge */}
+        {/* Card header — name, distance badge and cost badge */}
         <div className="flex justify-between items-start gap-2">
           <h2 className="card-title text-lg leading-tight">{event.name}</h2>
-          {/* Cost badge — green for free, neutral for paid */}
-          <span className={`badge badge-lg shrink-0 ${event.is_free ? 'badge-success' : 'badge-ghost'}`}>
-            {event.cost}
-          </span>
+          <div className="flex flex-col items-end gap-1 shrink-0">
+            {/* Distance badge — only shown when coordinates are available */}
+            {event.distance_miles !== undefined && (
+              <span className="badge badge-outline badge-lg">
+                {event.distance_miles < 0.1
+                  ? 'Nearby'
+                  : `${event.distance_miles.toFixed(1)} mi`}
+              </span>
+            )}
+            {/* Cost badge — green for free, neutral for paid */}
+            <span className={`badge badge-lg ${event.is_free ? 'badge-success' : 'badge-ghost'}`}>
+              {event.cost}
+            </span>
+          </div>
         </div>
 
         {/* Placeholder image — real images coming in a future version */}

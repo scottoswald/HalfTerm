@@ -46,7 +46,6 @@ def run_agent(
     keywords_list = "sibling friendly, dog friendly, accessible, parking nearby, café on site, book in advance, free cancellation, outdoor, indoor, rainy day, sunny day, drop in, booking required, gift shop, picnic area, photography allowed"
 
     # Build location instruction — pass coordinates to all three tools when available
-    # All three tools now accept optional lat/lng for radius-based searching
     if latitude is not None and longitude is not None:
         location_instruction = f"""
     - Location: {location} (coordinates: {latitude:.4f}, {longitude:.4f})
@@ -57,7 +56,6 @@ def run_agent(
     - Prioritise results within {radius_miles} miles of the coordinates ({latitude:.4f}, {longitude:.4f})
     """
     else:
-        # No coordinates — fall back to city name search
         location_instruction = f"""
     - Location: {location}
     - When calling search_ticketmaster_events, pass location="{location}" and date="{date}"
@@ -78,7 +76,7 @@ def run_agent(
       search_summary. It is better to return fewer accurate results than many irrelevant ones.
     """
 
-    # Category matching instruction — ensures Claude only returns relevant results
+    # Category matching instruction
     category_instruction = f"""
     IMPORTANT — Category matching rules:
     The user selected these specific categories: {activities_str}
@@ -133,6 +131,8 @@ def run_agent(
 
     - For keywords, only choose from this exact list: {keywords_list}
     - For directions_url use: https://www.google.com/maps/dir/?api=1&destination=VENUE_ADDRESS_URL_ENCODED
+    - For latitude and longitude fields, provide the coordinates of the venue or event location
+      as accurately as possible — these are used to calculate distance from the user
 
     You MUST respond with ONLY a valid JSON object — no markdown, no explanation, no text before or after.
     The JSON must follow this exact structure:
@@ -145,6 +145,8 @@ def run_agent(
           "name": "event name",
           "image_url": null,
           "location": "full address",
+          "latitude": 51.5074,
+          "longitude": -0.1278,
           "date": "formatted date",
           "time": "formatted time e.g. 10:00 AM",
           "age_range": "e.g. 3-8 or All ages",
@@ -165,6 +167,8 @@ def run_agent(
           "name": "venue name",
           "image_url": null,
           "location": "full address",
+          "latitude": 51.5074,
+          "longitude": -0.1278,
           "opening_times": "e.g. Daily 10:00 AM - 5:50 PM",
           "age_range": "e.g. All ages",
           "cost": "e.g. Free or From £10",

@@ -9,6 +9,9 @@ export interface Event {
   name: string
   image_url: string | null
   location: string
+  // Coordinates returned by the agent — used to calculate distance from user
+  latitude: number | null
+  longitude: number | null
   date: string
   time: string
   age_range: string
@@ -21,6 +24,8 @@ export interface Event {
   expanded_description: string
   booking_url: string | null
   directions_url: string
+  // Calculated on the frontend from user coordinates — not returned by agent
+  distance_miles?: number
 }
 
 // Represents a permanent venue e.g. a museum, park or attraction
@@ -29,6 +34,9 @@ export interface Venue {
   name: string
   image_url: string | null
   location: string
+  // Coordinates returned by the agent — used to calculate distance from user
+  latitude: number | null
+  longitude: number | null
   opening_times: string
   age_range: string
   cost: string
@@ -40,6 +48,8 @@ export interface Venue {
   expanded_description: string
   website_url: string | null
   directions_url: string
+  // Calculated on the frontend from user coordinates — not returned by agent
+  distance_miles?: number
 }
 
 // The full structured response returned by the backend search endpoint
@@ -56,7 +66,7 @@ export interface SearchParams {
   activities: string[]
   location: string
   // Optional GPS or postcode-derived coordinates
-  // Used for radius search — more accurate than city name alone
+  // Used for radius search and distance calculation
   latitude: number | null
   longitude: number | null
   // Search radius in miles — default 5

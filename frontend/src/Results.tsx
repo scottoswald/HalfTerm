@@ -8,7 +8,22 @@ import FilterPanel from './components/FilterPanel'
 
 // ---- RESULTS PAGE ----
 // Thin orchestration layer — all card components live in src/components/
-// Filter and sort logic lives here since it affects the whole page layout
+// Filter, sort and distance logic lives here since it affects the whole page
+
+// ---- HAVERSINE DISTANCE FORMULA ----
+// Calculates the distance in miles between two GPS coordinates
+// Used to show how far each result is from the user's location
+function haversineDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 3958.8 // Earth's radius in miles
+  const dLat = (lat2 - lat1) * Math.PI / 180
+  const dLon = (lon2 - lon1) * Math.PI / 180
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2)
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+  return R * c
+}
 
 // Helper to extract a numeric cost from a cost string for sorting
 // e.g. "From £18" -> 18, "Free" -> 0, "Varies" -> 999
@@ -58,25 +73,78 @@ function Results() {
   // Whether the mobile filter drawer is open
   const [filterDrawerOpen, setFilterDrawerOpen] = useState(false)
 
-  // Apply sorting and cost filtering to events and venues
-  // useMemo means this only recalculates when the data or filter values change
-  const filteredEvents = useMemo(() => {
+  // Whether the user provided coordinates — used to enable/disable closest sort
+  const hasCoordinates = !!(currentSearchParams?.latitude && currentSearchParams?.longitude)
+
+  // Add distance_miles to each result if user coordinates are available
+  // Uses the Haversine formula to calculate distance from user to each result
+  const eventsWithDistance = useMemo(() => {
     if (!currentData) return []
-    let results = currentData.events.filter(e => matchesCostFilter(e.cost, costFilter))
+    return currentData.events.map(event => {
+      if (
+        hasCoordinates &&
+        event.latitude != null &&
+        event.longitude != null &&
+        currentSearchParams?.latitude != null &&
+        currentSearchParams?.longitude != null
+      ) {
+        return {
+          ...event,
+          distance_miles: haversineDistance(
+            currentSearchParams.latitude,
+            currentSearchParams.longitude,
+            event.latitude,
+            event.longitude
+          )
+        }
+      }
+      return event
+    })
+  }, [currentData, currentSearchParams, hasCoordinates])
+
+  const venuesWithDistance = useMemo(() => {
+    if (!currentData) return []
+    return currentData.venues.map(venue => {
+      if (
+        hasCoordinates &&
+        venue.latitude != null &&
+        venue.longitude != null &&
+        currentSearchParams?.latitude != null &&
+        currentSearchParams?.longitude != null
+      ) {
+        return {
+          ...venue,
+          distance_miles: haversineDistance(
+            currentSearchParams.latitude,
+            currentSearchParams.longitude,
+            venue.latitude,
+            venue.longitude
+          )
+        }
+      }
+      return venue
+    })
+  }, [currentData, currentSearchParams, hasCoordinates])
+
+  // Apply cost filtering and sorting to events and venues
+  // useMemo means this only recalculates when data or filter values change
+  const filteredEvents = useMemo(() => {
+    let results = eventsWithDistance.filter(e => matchesCostFilter(e.cost, costFilter))
     if (sortBy === 'price_asc') results = [...results].sort((a, b) => parseCost(a.cost) - parseCost(b.cost))
     if (sortBy === 'price_desc') results = [...results].sort((a, b) => parseCost(b.cost) - parseCost(a.cost))
     if (sortBy === 'rating_desc') results = [...results].sort((a, b) => (b.rating || 0) - (a.rating || 0))
+    if (sortBy === 'distance_asc') results = [...results].sort((a, b) => (a.distance_miles ?? 999) - (b.distance_miles ?? 999))
     return results
-  }, [currentData, sortBy, costFilter])
+  }, [eventsWithDistance, sortBy, costFilter])
 
   const filteredVenues = useMemo(() => {
-    if (!currentData) return []
-    let results = currentData.venues.filter(v => matchesCostFilter(v.cost, costFilter))
+    let results = venuesWithDistance.filter(v => matchesCostFilter(v.cost, costFilter))
     if (sortBy === 'price_asc') results = [...results].sort((a, b) => parseCost(a.cost) - parseCost(b.cost))
     if (sortBy === 'price_desc') results = [...results].sort((a, b) => parseCost(b.cost) - parseCost(a.cost))
     if (sortBy === 'rating_desc') results = [...results].sort((a, b) => (b.rating || 0) - (a.rating || 0))
+    if (sortBy === 'distance_asc') results = [...results].sort((a, b) => (a.distance_miles ?? 999) - (b.distance_miles ?? 999))
     return results
-  }, [currentData, sortBy, costFilter])
+  }, [venuesWithDistance, sortBy, costFilter])
 
   // Handle removing an activity pill and re-searching with remaining activities
   const handleRemoveActivity = async (activityToRemove: string) => {
@@ -84,7 +152,6 @@ function Results() {
 
     const newActivities = currentSearchParams.activities.filter(a => a !== activityToRemove)
 
-    // If no activities remain go back to search page
     if (newActivities.length === 0) {
       navigate('/')
       return
@@ -161,12 +228,11 @@ function Results() {
         {/* Top controls — update search left, venues/events toggle centre, filter button right (mobile only) */}
         <div className="flex items-center justify-between mb-6 gap-2">
 
-          {/* Update search button */}
           <button onClick={() => navigate('/')} className="btn btn-outline btn-sm">
             ← Update search
           </button>
 
-          {/* Events / Venues / All toggle */}
+          {/* Venues / Events / All toggle */}
           <div className="join">
             <button
               className={`join-item btn btn-sm ${activeTab === 'all' ? 'btn-primary' : 'btn-outline'}`}
@@ -189,7 +255,6 @@ function Results() {
           </div>
 
           {/* Filter button — mobile only, opens bottom drawer */}
-          {/* lg:hidden means this button is hidden on large screens where the sidebar is visible */}
           <button
             className="btn btn-primary btn-sm lg:hidden"
             onClick={() => setFilterDrawerOpen(true)}
@@ -199,28 +264,27 @@ function Results() {
 
         </div>
 
-        {/* Main content — sidebar layout on desktop, single column on mobile */}
-        {/* lg:grid-cols-[240px_1fr] means sidebar is 240px wide on large screens */}
+        {/* Main content — sidebar on desktop, single column on mobile */}
         <div className="lg:grid lg:grid-cols-[240px_1fr] lg:gap-6">
 
-          {/* ---- SIDEBAR FILTERS (desktop only) ---- */}
-          {/* hidden lg:block means hidden on mobile, visible on large screens */}
+          {/* Sidebar filters — desktop only */}
           <aside className="hidden lg:block">
             <div className="card bg-base-100 shadow-sm border border-base-200 sticky top-6">
               <div className="card-body py-5 px-5">
                 <h2 className="font-bold text-base mb-4">Filters</h2>
                 <FilterPanel
-                    sortBy={sortBy}
-                    setSortBy={setSortBy}
-                    costFilter={costFilter}
-                    setCostFilter={setCostFilter}
-                    namePrefix="sidebar-"
+                  sortBy={sortBy}
+                  setSortBy={setSortBy}
+                  costFilter={costFilter}
+                  setCostFilter={setCostFilter}
+                  namePrefix="sidebar-"
+                  hasCoordinates={hasCoordinates}
                 />
               </div>
             </div>
           </aside>
 
-          {/* ---- RESULTS COLUMN ---- */}
+          {/* Results column */}
           <div className="flex flex-col gap-4">
 
             {/* Venues section */}
@@ -276,20 +340,16 @@ function Results() {
 
       </div>
 
-      {/* ---- MOBILE FILTER DRAWER ---- */}
-      {/* Bottom sheet that slides up on mobile when Filters button is tapped */}
+      {/* Mobile filter drawer */}
       {filterDrawerOpen && (
         <>
-          {/* Dark overlay behind the drawer — clicking it closes the drawer */}
           <div
             className="fixed inset-0 bg-black/40 z-40 lg:hidden"
             onClick={() => setFilterDrawerOpen(false)}
           />
-          {/* The drawer itself — slides up from the bottom */}
           <div className="fixed bottom-0 left-0 right-0 bg-base-100 rounded-t-2xl z-50 p-6 lg:hidden">
             <div className="flex justify-between items-center mb-6">
               <h2 className="font-bold text-lg">Filters</h2>
-              {/* Close button */}
               <button
                 className="btn btn-ghost btn-sm"
                 onClick={() => setFilterDrawerOpen(false)}
@@ -303,8 +363,8 @@ function Results() {
               costFilter={costFilter}
               setCostFilter={setCostFilter}
               namePrefix="drawer-"
+              hasCoordinates={hasCoordinates}
             />
-            {/* Apply button closes the drawer */}
             <button
               className="btn btn-primary btn-block mt-6"
               onClick={() => setFilterDrawerOpen(false)}
