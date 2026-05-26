@@ -8,13 +8,11 @@ import FilterPanel from './components/FilterPanel'
 
 // ---- RESULTS PAGE ----
 // Thin orchestration layer — all card components live in src/components/
-// Filter, sort and distance logic lives here since it affects the whole page
 
 // ---- HAVERSINE DISTANCE FORMULA ----
 // Calculates the distance in miles between two GPS coordinates
-// Used to show how far each result is from the user's location
 function haversineDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
-  const R = 3958.8 // Earth's radius in miles
+  const R = 3958.8
   const dLat = (lat2 - lat1) * Math.PI / 180
   const dLon = (lon2 - lon1) * Math.PI / 180
   const a =
@@ -25,8 +23,7 @@ function haversineDistance(lat1: number, lon1: number, lat2: number, lon2: numbe
   return R * c
 }
 
-// Helper to extract a numeric cost from a cost string for sorting
-// e.g. "From £18" -> 18, "Free" -> 0, "Varies" -> 999
+// Helper to extract a numeric cost for sorting
 function parseCost(cost: string): number {
   if (!cost || cost.toLowerCase() === 'free') return 0
   const match = cost.match(/[\d.]+/)
@@ -50,34 +47,20 @@ function Results() {
   const location = useLocation()
   const navigate = useNavigate()
 
-  // Get structured results and search params from App.tsx via React Router state
   const initialData = location.state?.result as SearchResults | undefined
   const initialSearchParams = location.state?.searchParams as SearchParams | undefined
 
-  // Active tab — 'all', 'events' or 'venues'
   const [activeTab, setActiveTab] = useState<'all' | 'events' | 'venues'>('all')
-
-  // Current results — updated when activities are removed via X button
   const [currentData, setCurrentData] = useState<SearchResults | undefined>(initialData)
-
-  // Current search params — updated when activities are removed
   const [currentSearchParams, setCurrentSearchParams] = useState<SearchParams | undefined>(initialSearchParams)
-
-  // Whether a re-search is in progress after removing an activity
   const [searching, setSearching] = useState(false)
-
-  // Filter and sort state
   const [sortBy, setSortBy] = useState('recommended')
   const [costFilter, setCostFilter] = useState('any')
-
-  // Whether the mobile filter drawer is open
   const [filterDrawerOpen, setFilterDrawerOpen] = useState(false)
 
-  // Whether the user provided coordinates — used to enable/disable closest sort
   const hasCoordinates = !!(currentSearchParams?.latitude && currentSearchParams?.longitude)
 
-  // Add distance_miles to each result if user coordinates are available
-  // Uses the Haversine formula to calculate distance from user to each result
+  // Add distance_miles to each result using Haversine formula
   const eventsWithDistance = useMemo(() => {
     if (!currentData) return []
     return currentData.events.map(event => {
@@ -126,8 +109,7 @@ function Results() {
     })
   }, [currentData, currentSearchParams, hasCoordinates])
 
-  // Apply cost filtering and sorting to events and venues
-  // useMemo means this only recalculates when data or filter values change
+  // Apply cost filtering and sorting
   const filteredEvents = useMemo(() => {
     let results = eventsWithDistance.filter(e => matchesCostFilter(e.cost, costFilter))
     if (sortBy === 'price_asc') results = [...results].sort((a, b) => parseCost(a.cost) - parseCost(b.cost))
@@ -146,17 +128,14 @@ function Results() {
     return results
   }, [venuesWithDistance, sortBy, costFilter])
 
-  // Handle removing an activity pill and re-searching with remaining activities
+  // Handle removing an activity pill and re-searching
   const handleRemoveActivity = async (activityToRemove: string) => {
     if (!currentSearchParams) return
-
     const newActivities = currentSearchParams.activities.filter(a => a !== activityToRemove)
-
     if (newActivities.length === 0) {
       navigate('/')
       return
     }
-
     setSearching(true)
     try {
       const apiUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000'
@@ -180,7 +159,7 @@ function Results() {
     }
   }
 
-  // Error state — no data or backend error
+  // Error state
   if (!currentData || currentData.error) {
     return (
       <div className="min-h-screen bg-base-200 flex items-center justify-center p-6">
@@ -218,6 +197,14 @@ function Results() {
           onRemoveActivity={handleRemoveActivity}
         />
 
+        {/* Extended search notice — shown when Claude went beyond the requested radius */}
+        {/* Uses a soft info style so it's visible but not alarming */}
+        {currentData.search_extended && currentData.search_extended_message && (
+          <div className="alert alert-info mb-4 text-sm">
+            <span>ℹ️ {currentData.search_extended_message}</span>
+          </div>
+        )}
+
         {/* Updating results indicator */}
         {searching && (
           <p className="text-sm text-base-content/40 animate-pulse text-center mb-4">
@@ -225,9 +212,8 @@ function Results() {
           </p>
         )}
 
-        {/* Top controls — update search left, venues/events toggle centre, filter button right (mobile only) */}
+        {/* Top controls */}
         <div className="flex items-center justify-between mb-6 gap-2">
-
           <button onClick={() => navigate('/')} className="btn btn-outline btn-sm">
             ← Update search
           </button>
@@ -254,14 +240,13 @@ function Results() {
             </button>
           </div>
 
-          {/* Filter button — mobile only, opens bottom drawer */}
+          {/* Filter button — mobile only */}
           <button
             className="btn btn-primary btn-sm lg:hidden"
             onClick={() => setFilterDrawerOpen(true)}
           >
             Filters
           </button>
-
         </div>
 
         {/* Main content — sidebar on desktop, single column on mobile */}

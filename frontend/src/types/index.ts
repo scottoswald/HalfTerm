@@ -49,6 +49,12 @@ export interface SearchResults {
   events: Event[]
   venues: Venue[]
   error?: string
+  // True when Claude extended the search beyond the requested radius
+  // because there weren't enough results within it
+  search_extended?: boolean
+  // Human-readable explanation of why the search was extended
+  // e.g. "We couldn't find enough results within 5 miles so we've included some nearby options too"
+  search_extended_message?: string
 }
 
 // A selected vibe stores both the display label (shown in the UI)
@@ -60,8 +66,6 @@ export interface SelectedVibe {
 
 export interface SearchParams {
   activities: string[]
-  // Vibes store label + value so the summary can show the short label
-  // while the agent receives the full descriptive value
   vibes: SelectedVibe[]
   location: string
   latitude: number | null

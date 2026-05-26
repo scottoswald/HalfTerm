@@ -41,8 +41,7 @@ def run_agent(
 
     keywords_list = "sibling friendly, dog friendly, accessible, parking nearby, café on site, book in advance, free cancellation, outdoor, indoor, rainy day, sunny day, drop in, booking required, gift shop, picnic area, photography allowed"
 
-    # Build vibes instruction — only included if user selected experience modifiers
-    # Vibes shape the feel and ethos of results rather than the activity type
+    # Build vibes instruction
     vibes_instruction = ""
     if vibes:
         vibes_str = ", ".join(vibes)
@@ -55,15 +54,24 @@ def run_agent(
       the budget filter is set to "any".
     """
 
-    # Build location instruction
+    # Build location instruction with radius guidance
     if latitude is not None and longitude is not None:
         location_instruction = f"""
     - Location: {location} (coordinates: {latitude:.4f}, {longitude:.4f})
-    - Search radius: {radius_miles} miles from these coordinates
+    - Requested search radius: {radius_miles} miles from these coordinates
     - When calling search_ticketmaster_events, pass location="{location}", date="{date}", latitude={latitude}, longitude={longitude}, radius_miles={radius_miles}
     - When calling search_eventbrite_events, pass location="{location}", query="{activities_str}", date="{date}", latitude={latitude}, longitude={longitude}, radius_miles={radius_miles}
     - When calling search_google_places, pass query="{activities_str}", location="{location}", latitude={latitude}, longitude={longitude}, radius_miles={radius_miles}
-    - Prioritise results within {radius_miles} miles of the coordinates ({latitude:.4f}, {longitude:.4f})
+
+    RADIUS RULES:
+    - Strongly prefer results within {radius_miles} miles of ({latitude:.4f}, {longitude:.4f})
+    - If the tools return enough results within {radius_miles} miles, only include those
+    - If the tools return fewer than 2 results within {radius_miles} miles, you may include
+      results from further away BUT you MUST set "search_extended" to true in your response
+      and set "search_extended_message" to a friendly message explaining this e.g.
+      "We couldn't find enough results within {radius_miles} miles of {location}, so we've
+      included some nearby options too."
+    - If all results are within the radius, set "search_extended" to false
     """
     else:
         location_instruction = f"""
@@ -80,7 +88,6 @@ def run_agent(
     - The user has also typed this specific search: "{free_text}"
       Prioritise results that match this specific request.
       Handle any spelling mistakes or ambiguous terms intelligently.
-      This should narrow or refine results, not replace the other criteria.
       IMPORTANT: If you cannot find results that genuinely match "{free_text}", do NOT
       substitute unrelated results. Return an empty events array and explain in the
       search_summary. It is better to return fewer accurate results than many irrelevant ones.
@@ -91,7 +98,6 @@ def run_agent(
     IMPORTANT — Category matching rules:
     The user selected these specific categories: {activities_str}
     You MUST only return results that genuinely and specifically match these categories.
-    Do not include results that merely tangentially relate to the categories.
     If you cannot find enough genuinely matching results, return fewer results rather than
     padding with loosely related ones. Quality over quantity.
     """
@@ -144,6 +150,8 @@ def run_agent(
 
     {{
       "search_summary": "brief summary e.g. Museums in London, Tuesday 20th May 2026, Ages 8-12, Free",
+      "search_extended": false,
+      "search_extended_message": null,
       "events": [
         {{
           "type": "event",
@@ -205,6 +213,8 @@ def run_agent(
         logger.error(f"Raw response: {response_text}")
         return {
             "search_summary": f"{activities_str} in {location}",
+            "search_extended": False,
+            "search_extended_message": None,
             "events": [],
             "venues": [],
             "error": "Sorry, something went wrong formatting the results. Please try again."
