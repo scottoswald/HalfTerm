@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import type { SelectedVibe } from './types'
 
 // Activity options — each has an emoji, label, subtitle and value to pass to the agent
 const ACTIVITIES = [
@@ -21,17 +22,32 @@ const ACTIVITIES = [
   { emoji: '🤝', label: 'Community', subtitle: 'Local Clubs, Youth Groups, Volunteering', value: 'Community' },
 ]
 
-// Quick pick cities — shown as a dropdown shortcut below the location search box
+// "What kind of experience?" options — 3x3 grid
+// label is shown in the UI and summary pills
+// value is the full description passed to the agent for context
+const EXPERIENCE_VIBES = [
+  { emoji: '💸', label: 'Free & Low Cost', value: 'free and low cost, suitable for families on a tight budget' },
+  { emoji: '🤝', label: 'Local & Grassroots', value: 'local, community-run, volunteer-led or grassroots' },
+  { emoji: '🌍', label: 'Cultural', value: 'celebrating different cultures, heritages or languages' },
+  { emoji: '💜', label: 'Accessible', value: 'accessible and inclusive for children with additional needs, disabilities or sensory sensitivities' },
+  { emoji: '😴', label: 'Calm & Quiet', value: 'calm, quiet and not overwhelming — good for children who find busy or loud environments difficult' },
+  { emoji: '📖', label: 'Strong Learning Focus', value: 'genuinely educational with strong learning value, not just fun' },
+  { emoji: '🌱', label: 'Eco & Nature', value: 'environmentally focused, conservation-led or nature-based' },
+  { emoji: '✨', label: 'Hidden Gem', value: 'lesser-known, off the beaten track, avoiding tourist crowds' },
+  { emoji: '🎲', label: 'Surprise Me', value: 'surprise the family with something unexpected and different' },
+]
+
+// Quick pick cities
 const QUICK_PICK_CITIES = [
   'London', 'Manchester', 'Birmingham', 'Leeds', 'Edinburgh',
   'Glasgow', 'Bristol', 'Cardiff', 'Liverpool', 'Newcastle',
   'Brighton', 'Oxford', 'Cambridge', 'Bath',
 ]
 
-// Radius options in miles — shown as toggle buttons below the location search box
+// Radius options in miles
 const RADIUS_OPTIONS = [1, 2, 5, 10, 20]
 
-// Date options to pass to the agent
+// Date options
 const DATES = [
   { label: 'Today', value: 'today' },
   { label: 'Tomorrow', value: 'tomorrow' },
@@ -40,7 +56,7 @@ const DATES = [
   { label: 'Next Week', value: 'next week' },
 ]
 
-// Age range options — passed to the agent to filter results
+// Age range options
 const AGE_RANGES = [
   { label: 'Babies & Toddlers (0-3)', value: '0-3' },
   { label: 'Young Children (4-7)', value: '4-7' },
@@ -49,7 +65,7 @@ const AGE_RANGES = [
   { label: 'All Ages', value: 'all ages' },
 ]
 
-// Cost range options — passed to the agent to filter results
+// Cost range options
 const COST_RANGES = [
   { label: 'Any Budget', value: 'any' },
   { label: 'Free only', value: 'free' },
@@ -68,7 +84,6 @@ const LOADING_MESSAGES = [
 ]
 
 // Check if a string looks like a UK postcode
-// Used to decide whether to look up coordinates via Postcodes.io
 function looksLikePostcode(value: string): boolean {
   return /^[A-Z]{1,2}\d[A-Z\d]?\s*\d[A-Z]{2}$/i.test(value.trim())
 }
@@ -78,7 +93,11 @@ function App() {
 
   const [selectedActivities, setSelectedActivities] = useState<string[]>([])
 
-  // Location state — text input, optional GPS coordinates, and radius
+  // Vibes store both label and value so the summary can show the short label
+  // while the agent receives the full descriptive value
+  const [selectedVibes, setSelectedVibes] = useState<SelectedVibe[]>([])
+
+  // Location state
   const [locationText, setLocationText] = useState('')
   const [latitude, setLatitude] = useState<number | null>(null)
   const [longitude, setLongitude] = useState<number | null>(null)
@@ -94,14 +113,20 @@ function App() {
 
   const toggleActivity = (value: string) => {
     setSelectedActivities(prev =>
-      prev.includes(value)
-        ? prev.filter(a => a !== value)
-        : [...prev, value]
+      prev.includes(value) ? prev.filter(a => a !== value) : [...prev, value]
+    )
+  }
+
+  // Toggle a vibe on or off — stores the full {label, value} object
+  const toggleVibe = (vibe: { label: string; value: string }) => {
+    setSelectedVibes(prev =>
+      prev.some(v => v.value === vibe.value)
+        ? prev.filter(v => v.value !== vibe.value)
+        : [...prev, { label: vibe.label, value: vibe.value }]
     )
   }
 
   // Request GPS location from the browser
-  // Works on mobile and desktop — browser will ask for permission
   const handleUseCurrentLocation = () => {
     if (!navigator.geolocation) {
       setLocationStatus('error')
@@ -110,14 +135,12 @@ function App() {
     setLocationStatus('loading')
     navigator.geolocation.getCurrentPosition(
       (position) => {
-        // GPS success — store coordinates and update display text
         setLatitude(position.coords.latitude)
         setLongitude(position.coords.longitude)
         setLocationText('Current location')
         setLocationStatus('success')
       },
       () => {
-        // GPS failed — user denied permission or location unavailable
         setLocationStatus('error')
         setLatitude(null)
         setLongitude(null)
@@ -125,8 +148,7 @@ function App() {
     )
   }
 
-  // Look up postcode coordinates via Postcodes.io (free UK postcode API, no key needed)
-  // Called when user types something that looks like a UK postcode
+  // Look up postcode coordinates via Postcodes.io
   const lookupPostcode = async (postcode: string): Promise<{ lat: number; lng: number } | null> => {
     try {
       const response = await fetch(`https://api.postcodes.io/postcodes/${encodeURIComponent(postcode)}`)
@@ -140,16 +162,13 @@ function App() {
     }
   }
 
-  // Handle location text input changes
-  // If it looks like a postcode, look up coordinates automatically
+  // Handle location text input — auto-lookup if it looks like a postcode
   const handleLocationChange = async (value: string) => {
     setLocationText(value)
-    // Clear GPS coordinates when user types manually
     setLatitude(null)
     setLongitude(null)
     setLocationStatus('idle')
 
-    // Auto-lookup if it looks like a postcode
     if (looksLikePostcode(value)) {
       const coords = await lookupPostcode(value)
       if (coords) {
@@ -160,7 +179,7 @@ function App() {
     }
   }
 
-  // Handle quick pick city selection — populates text box and clears GPS
+  // Handle quick pick city selection
   const handleQuickPickCity = (city: string) => {
     setLocationText(city)
     setLatitude(null)
@@ -169,7 +188,6 @@ function App() {
   }
 
   const handleSearch = async () => {
-    // Require at least a location before searching
     if (!locationText.trim()) {
       alert('Please enter a location or use your current location')
       return
@@ -185,11 +203,11 @@ function App() {
 
     const searchParams = {
       activities: selectedActivities.length > 0 ? selectedActivities : ['family activities'],
+      // Pass full vibe objects — SearchSummary uses label, agent uses value
+      vibes: selectedVibes,
       location: locationText.trim(),
-      // Pass coordinates if available (GPS or postcode lookup)
-      // Backend uses these for radius search instead of just city name
-      latitude: latitude,
-      longitude: longitude,
+      latitude,
+      longitude,
       radius_miles: radiusMiles,
       date,
       age_range: ageRange,
@@ -238,15 +256,13 @@ function App() {
         <div className="card bg-base-100 shadow-xl">
           <div className="card-body gap-6">
 
-            {/* Activity grid */}
+            {/* ---- WHAT ---- */}
             <div>
               <label className="label">
                 <span className="label-text font-semibold text-base">
                   What are you looking for?
                 </span>
-                <span className="label-text-alt text-base-content/50">
-                  Pick one or more
-                </span>
+                <span className="label-text-alt text-base-content/50">Pick one or more</span>
               </label>
               <div className="grid grid-cols-4 gap-2">
                 {ACTIVITIES.map(activity => (
@@ -254,9 +270,7 @@ function App() {
                     key={activity.value}
                     onClick={() => toggleActivity(activity.value)}
                     className={`btn btn-sm flex-col h-auto py-3 gap-0.5 ${
-                      selectedActivities.includes(activity.value)
-                        ? 'btn-primary'
-                        : 'btn-outline'
+                      selectedActivities.includes(activity.value) ? 'btn-primary' : 'btn-outline'
                     }`}
                   >
                     <span className="text-xl">{activity.emoji}</span>
@@ -269,7 +283,7 @@ function App() {
               </div>
             </div>
 
-            {/* Free text search */}
+            {/* ---- SOMETHING SPECIFIC ---- */}
             <div>
               <label className="label">
                 <span className="label-text font-semibold text-base">
@@ -286,14 +300,40 @@ function App() {
               />
             </div>
 
-            {/* Location section */}
+            {/* ---- WHAT KIND OF EXPERIENCE ---- */}
+            {/* Optional ethos modifiers — 3x3 grid */}
+            {/* Visually lighter than activity grid to signal it's optional */}
+            <div>
+              <label className="label pb-1">
+                <span className="label-text font-semibold text-base">
+                  What kind of experience?
+                </span>
+                <span className="label-text-alt text-base-content/40 italic">Optional</span>
+              </label>
+              <div className="grid grid-cols-3 gap-2">
+                {EXPERIENCE_VIBES.map(vibe => (
+                  <button
+                    key={vibe.value}
+                    onClick={() => toggleVibe(vibe)}
+                    className={`btn btn-sm flex-col h-auto py-2 gap-0.5 ${
+                      selectedVibes.some(v => v.value === vibe.value)
+                        ? 'btn-secondary'
+                        : 'btn-ghost border border-base-300'
+                    }`}
+                  >
+                    <span className="text-lg">{vibe.emoji}</span>
+                    <span className="text-xs font-medium">{vibe.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* ---- WHERE ---- */}
             <div>
               <label className="label">
                 <span className="label-text font-semibold text-base">Where?</span>
               </label>
 
-              {/* Use current location button */}
-              {/* Browser Geolocation API works on both mobile and desktop */}
               <button
                 className={`btn btn-outline btn-block mb-3 ${locationStatus === 'loading' ? 'loading' : ''}`}
                 onClick={handleUseCurrentLocation}
@@ -305,8 +345,6 @@ function App() {
                 {locationStatus === 'idle' && '📍 Use my current location'}
               </button>
 
-              {/* Location text input — accepts postcode, town, city or village */}
-              {/* Automatically looks up coordinates when a valid postcode is entered */}
               <input
                 type="text"
                 className="input input-bordered w-full mb-3"
@@ -315,7 +353,6 @@ function App() {
                 onChange={e => handleLocationChange(e.target.value)}
               />
 
-              {/* Radius selector — shown as toggle buttons */}
               <div className="flex items-center gap-2 mb-3">
                 <span className="text-sm text-base-content/60 shrink-0">Within:</span>
                 <div className="flex gap-1 flex-wrap">
@@ -331,17 +368,12 @@ function App() {
                 </div>
               </div>
 
-              {/* Quick pick city dropdown — shortcut to populate the text box */}
               <div className="flex items-center gap-2">
-                <span className="text-sm text-base-content/60 shrink-0">
-                  Or quick pick a city:
-                </span>
+                <span className="text-sm text-base-content/60 shrink-0">Or quick pick a city:</span>
                 <select
                   className="select select-bordered select-sm flex-1"
                   value=""
-                  onChange={e => {
-                    if (e.target.value) handleQuickPickCity(e.target.value)
-                  }}
+                  onChange={e => { if (e.target.value) handleQuickPickCity(e.target.value) }}
                 >
                   <option value="" disabled>Select a city...</option>
                   {QUICK_PICK_CITIES.map(city => (
@@ -349,10 +381,9 @@ function App() {
                   ))}
                 </select>
               </div>
-
             </div>
 
-            {/* Date, age range and cost range */}
+            {/* ---- WHEN / WHO / BUDGET ---- */}
             <div className="grid grid-cols-3 gap-4">
 
               <div>
@@ -372,7 +403,7 @@ function App() {
 
               <div>
                 <label className="label">
-                  <span className="label-text font-semibold">Ages?</span>
+                  <span className="label-text font-semibold">Who's coming?</span>
                 </label>
                 <select
                   className="select select-bordered w-full"

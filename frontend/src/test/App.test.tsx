@@ -65,10 +65,9 @@ describe('App component', () => {
         <App />
       </MemoryRouter>
     )
-
     // Check all three dropdown labels are present
     expect(screen.getByText('When?')).toBeInTheDocument()
-    expect(screen.getByText('Ages?')).toBeInTheDocument()
+    expect(screen.getByText("Who's coming?")).toBeInTheDocument()
     expect(screen.getByText('Budget?')).toBeInTheDocument()
   })
 

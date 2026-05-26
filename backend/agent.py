@@ -12,7 +12,6 @@ logger = logging.getLogger(__name__)
 load_dotenv()
 
 # ---- THE MODEL ----
-# temperature=0 keeps responses consistent and factual rather than creative
 llm = ChatAnthropic(
     model="claude-opus-4-5",
     temperature=0,
@@ -20,13 +19,9 @@ llm = ChatAnthropic(
 )
 
 # ---- THE TOOLS ----
-# search_ticketmaster_events — finds live ticketed events via Ticketmaster API
-# search_google_places — finds permanent venues via Google Places API
-# search_eventbrite_events — finds community events and workshops via Eventbrite API
 tools = [search_ticketmaster_events, search_google_places, search_eventbrite_events]
 
 # ---- THE AGENT ----
-# create_react_agent uses the ReAct pattern — Reason, Act, Observe, repeat
 agent_executor = create_react_agent(llm, tools)
 
 # ---- THE RUN FUNCTION ----
@@ -36,6 +31,7 @@ def run_agent(
     date: str,
     age_range: str,
     cost_range: str,
+    vibes: list[str] = [],
     latitude: Optional[float] = None,
     longitude: Optional[float] = None,
     radius_miles: int = 5,
@@ -45,7 +41,21 @@ def run_agent(
 
     keywords_list = "sibling friendly, dog friendly, accessible, parking nearby, café on site, book in advance, free cancellation, outdoor, indoor, rainy day, sunny day, drop in, booking required, gift shop, picnic area, photography allowed"
 
-    # Build location instruction — pass coordinates to all three tools when available
+    # Build vibes instruction — only included if user selected experience modifiers
+    # Vibes shape the feel and ethos of results rather than the activity type
+    vibes_instruction = ""
+    if vibes:
+        vibes_str = ", ".join(vibes)
+        vibes_instruction = f"""
+    - The user is also looking for experiences that are: {vibes_str}
+      Prioritise results that match these experience qualities.
+      If "surprise the family with something unexpected" is selected, choose something
+      genuinely unexpected and different rather than the most obvious options.
+      If "free and low cost" is selected, prioritise free or under £5 options even if
+      the budget filter is set to "any".
+    """
+
+    # Build location instruction
     if latitude is not None and longitude is not None:
         location_instruction = f"""
     - Location: {location} (coordinates: {latitude:.4f}, {longitude:.4f})
@@ -82,11 +92,6 @@ def run_agent(
     The user selected these specific categories: {activities_str}
     You MUST only return results that genuinely and specifically match these categories.
     Do not include results that merely tangentially relate to the categories.
-    Examples of what NOT to do:
-    - If the user selected "Music", do not include sports events that happen to be at music venues
-    - If the user selected "Community", do not include large commercial events
-    - If the user selected "Gaming", do not include general entertainment venues
-    - If the user selected "Learning", do not include any activity that is merely fun without educational value
     If you cannot find enough genuinely matching results, return fewer results rather than
     padding with loosely related ones. Quality over quantity.
     """
@@ -99,6 +104,7 @@ def run_agent(
     - Date: {date}
     - Age range: {age_range}
     - Budget: {cost_range}
+    {vibes_instruction}
     {free_text_instruction}
     {category_instruction}
 
@@ -131,8 +137,7 @@ def run_agent(
 
     - For keywords, only choose from this exact list: {keywords_list}
     - For directions_url use: https://www.google.com/maps/dir/?api=1&destination=VENUE_ADDRESS_URL_ENCODED
-    - For latitude and longitude fields, provide the coordinates of the venue or event location
-      as accurately as possible — these are used to calculate distance from the user
+    - For latitude and longitude, provide the coordinates of the venue or event location
 
     You MUST respond with ONLY a valid JSON object — no markdown, no explanation, no text before or after.
     The JSON must follow this exact structure:

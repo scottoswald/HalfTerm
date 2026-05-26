@@ -77,7 +77,11 @@ describe('Results component', () => {
         date: 'today',
         age_range: 'all ages',
         cost_range: 'any',
-        free_text: null
+        free_text: null,
+        vibes: [],
+        latitude: null,
+        longitude: null,
+        radius_miles: 5
       }
     })
     // Check the summary labels are present
