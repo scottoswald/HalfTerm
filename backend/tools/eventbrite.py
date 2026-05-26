@@ -16,60 +16,48 @@ def search_eventbrite_events(
 ) -> str:
     """
     Search for kids and family events using the Eventbrite API.
-    Returns community events, workshops, classes and local activities with details and links.
-    Use this tool to find smaller local events, workshops and classes that may not appear
-    on Ticketmaster — things like craft workshops, coding classes, sports sessions,
-    family fun days and community events.
+    Returns community events, workshops, classes and local activities with details,
+    links and image URLs.
+    Use this tool to find smaller local events, workshops and classes that may not
+    appear on Ticketmaster.
     Always use this tool alongside Ticketmaster for comprehensive event coverage.
-    Accepts optional coordinates for radius-based searching — more accurate than city name alone.
+    Accepts optional coordinates for radius-based searching.
     """
     api_key = os.getenv("EVENTBRITE_API_KEY")
-
     is_today = date.startswith('today')
 
     try:
-        # Build base params
-        # We append "kids family children" to bias results towards family content
         params = {
             "q": f"{query} kids family children",
             "categories": "1",
-            "expand": "venue",
+            "expand": "venue,logo",
             "sort_by": "date",
         }
 
-        # Use lat/lng radius search if coordinates are available
-        # This is more accurate than city name alone especially for postcode searches
         if latitude is not None and longitude is not None:
             params["location.latitude"] = str(latitude)
             params["location.longitude"] = str(longitude)
             params["location.within"] = f"{radius_miles or 5}mi"
         else:
-            # Fall back to city name search
             params["location.address"] = location
             params["location.within"] = "20km"
 
-        # Set date range params
         if is_today:
             params["start_date.keyword"] = "today"
         else:
             date_pattern = r'(\d{1,2})(?:st|nd|rd|th)\s+(\w+)\s+(\d{4})'
             matches = re.findall(date_pattern, date)
-
             if matches:
                 try:
                     first_date = datetime.strptime(
-                        f"{matches[0][0]} {matches[0][1]} {matches[0][2]}",
-                        "%d %B %Y"
+                        f"{matches[0][0]} {matches[0][1]} {matches[0][2]}", "%d %B %Y"
                     )
                     params["start_date.range_start"] = first_date.strftime("%Y-%m-%dT00:00:00Z")
-
                     if len(matches) > 1:
                         last_date = datetime.strptime(
-                            f"{matches[-1][0]} {matches[-1][1]} {matches[-1][2]}",
-                            "%d %B %Y"
+                            f"{matches[-1][0]} {matches[-1][1]} {matches[-1][2]}", "%d %B %Y"
                         )
                         params["start_date.range_end"] = last_date.strftime("%Y-%m-%dT23:59:59Z")
-
                 except ValueError:
                     params["start_date.keyword"] = "today"
             else:
@@ -81,7 +69,6 @@ def search_eventbrite_events(
             params=params,
             timeout=10
         )
-
         response.raise_for_status()
         data = response.json()
 
@@ -93,7 +80,6 @@ def search_eventbrite_events(
             name = event.get("name", {}).get("text", "Unknown event")
             url = event.get("url", "No URL available")
             description = event.get("description", {}).get("text", "")
-
             if description and len(description) > 100:
                 description = description[:100] + "..."
 
@@ -107,12 +93,21 @@ def search_eventbrite_events(
             is_free = event.get("is_free", False)
             cost = "Free" if is_free else "Paid (see website for prices)"
 
+            # Extract logo/image URL from Eventbrite event
+            # Eventbrite returns a logo object with original and crop URLs
+            image_url = "No photo"
+            logo = event.get("logo")
+            if logo:
+                # Prefer the original image, fall back to the crop
+                image_url = logo.get("original", {}).get("url") or logo.get("url") or "No photo"
+
             results.append(
                 f"- {name}\n"
                 f"  Venue: {venue_name} {venue_address}\n"
                 f"  Date: {event_date}\n"
                 f"  Cost: {cost}\n"
-                f"  Link: {url}"
+                f"  Link: {url}\n"
+                f"  Photo: {image_url}"
             )
 
         return "\n\n".join(results)

@@ -5,15 +5,28 @@ import StarRating from './StarRating'
 // ---- EVENT CARD COMPONENT ----
 // Renders a single event card with expandable description
 // Events are ticketed, time-specific activities e.g. workshops, shows, performances
-// Distinct from venues which are permanent places families can visit
 
 interface EventCardProps {
   event: Event
 }
 
+// Generate initials from a name for the image fallback
+// e.g. "Natural History Museum" -> "NHM", "Paddington Bear Experience" -> "PBE"
+function getInitials(name: string): string {
+  return name
+    .split(' ')
+    .filter(word => word.length > 2) // Skip short words like "at", "the", "of"
+    .slice(0, 3)
+    .map(word => word[0].toUpperCase())
+    .join('')
+}
+
 function EventCard({ event }: EventCardProps) {
-  // Track whether this card is expanded or collapsed
   const [expanded, setExpanded] = useState(false)
+  const [imageError, setImageError] = useState(false)
+
+  // Show initials fallback if no image URL or image fails to load
+  const showImage = event.image_url && !imageError
 
   return (
     <div className="card bg-base-100 shadow-md border border-base-200">
@@ -23,27 +36,35 @@ function EventCard({ event }: EventCardProps) {
         <div className="flex justify-between items-start gap-2">
           <h2 className="card-title text-lg leading-tight">{event.name}</h2>
           <div className="flex flex-col items-end gap-1 shrink-0">
-            {/* Distance badge — only shown when coordinates are available */}
             {event.distance_miles !== undefined && (
               <span className="badge badge-outline badge-lg">
-                {event.distance_miles < 0.1
-                  ? 'Nearby'
-                  : `${event.distance_miles.toFixed(1)} mi`}
+                {event.distance_miles < 0.1 ? 'Nearby' : `${event.distance_miles.toFixed(1)} mi`}
               </span>
             )}
-            {/* Cost badge — green for free, neutral for paid */}
             <span className={`badge badge-lg ${event.is_free ? 'badge-success' : 'badge-ghost'}`}>
               {event.cost}
             </span>
           </div>
         </div>
 
-        {/* Placeholder image — real images coming in a future version */}
-        <div className="w-full h-40 bg-base-200 rounded-xl flex items-center justify-center">
-          <span className="text-base-content/30 text-sm">📷 Image coming soon</span>
-        </div>
+        {/* Image — real photo if available, initials fallback if not */}
+        {showImage ? (
+          <img
+            src={event.image_url!}
+            alt={event.name}
+            className="w-full h-40 object-cover rounded-xl"
+            onError={() => setImageError(true)}
+          />
+        ) : (
+          // Initials fallback — shows abbreviated name in a styled placeholder
+          <div className="w-full h-40 bg-base-200 rounded-xl flex items-center justify-center">
+            <span className="text-3xl font-black text-base-content/20">
+              {getInitials(event.name)}
+            </span>
+          </div>
+        )}
 
-        {/* Key details grid — location left, date/time right */}
+        {/* Key details grid */}
         <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
           <div className="flex items-start gap-1">
             <span>📍</span>
@@ -63,26 +84,20 @@ function EventCard({ event }: EventCardProps) {
           </div>
         </div>
 
-        {/* Star rating if available */}
         {event.rating && <StarRating rating={event.rating} />}
 
-        {/* Keywords — small tag pills */}
         {event.keywords.length > 0 && (
           <div className="flex flex-wrap gap-1">
             {event.keywords.map(keyword => (
-              <span key={keyword} className="badge badge-outline badge-sm">
-                {keyword}
-              </span>
+              <span key={keyword} className="badge badge-outline badge-sm">{keyword}</span>
             ))}
           </div>
         )}
 
-        {/* Description — one sentence collapsed, full paragraph expanded */}
         <p className="text-sm text-base-content/80">
           {expanded ? event.expanded_description : event.description}
         </p>
 
-        {/* Expand/collapse button */}
         <button
           onClick={() => setExpanded(!expanded)}
           className="btn btn-ghost btn-sm self-center"
@@ -91,8 +106,6 @@ function EventCard({ event }: EventCardProps) {
           {expanded ? '▲ Show less' : '▼ Show more'}
         </button>
 
-        {/* Action buttons — directions and booking */}
-        {/* Opens in a new tab so the user doesn't lose their results */}
         <div className="flex gap-2 mt-1">
           <a
             href={event.directions_url}
@@ -102,7 +115,6 @@ function EventCard({ event }: EventCardProps) {
           >
             📍 Directions
           </a>
-          {/* Only show booking button if a booking URL exists */}
           {event.booking_url && (
             <a
               href={event.booking_url}

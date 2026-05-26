@@ -5,14 +5,28 @@ import StarRating from './StarRating'
 // ---- VENUE CARD COMPONENT ----
 // Renders a single venue card with expandable description
 // Venues are permanent places families can visit e.g. museums, parks, zoos
-// Distinct from events which are time-specific ticketed activities
 
 interface VenueCardProps {
   venue: Venue
 }
 
+// Generate initials from a name for the image fallback
+// e.g. "Natural History Museum" -> "NHM", "Brighton Toy Museum" -> "BTM"
+function getInitials(name: string): string {
+  return name
+    .split(' ')
+    .filter(word => word.length > 2) // Skip short words like "at", "the", "of"
+    .slice(0, 3)
+    .map(word => word[0].toUpperCase())
+    .join('')
+}
+
 function VenueCard({ venue }: VenueCardProps) {
   const [expanded, setExpanded] = useState(false)
+  const [imageError, setImageError] = useState(false)
+
+  // Show initials fallback if no image URL or image fails to load
+  const showImage = venue.image_url && !imageError
 
   return (
     <div className="card bg-base-100 shadow-md border border-base-200">
@@ -22,25 +36,33 @@ function VenueCard({ venue }: VenueCardProps) {
         <div className="flex justify-between items-start gap-2">
           <h2 className="card-title text-lg leading-tight">{venue.name}</h2>
           <div className="flex flex-col items-end gap-1 shrink-0">
-            {/* Distance badge — only shown when coordinates are available */}
             {venue.distance_miles !== undefined && (
               <span className="badge badge-outline badge-lg">
-                {venue.distance_miles < 0.1
-                  ? 'Nearby'
-                  : `${venue.distance_miles.toFixed(1)} mi`}
+                {venue.distance_miles < 0.1 ? 'Nearby' : `${venue.distance_miles.toFixed(1)} mi`}
               </span>
             )}
-            {/* Cost badge — green for free, neutral for paid */}
             <span className={`badge badge-lg ${venue.is_free ? 'badge-success' : 'badge-ghost'}`}>
               {venue.cost}
             </span>
           </div>
         </div>
 
-        {/* Placeholder image — real images coming in a future version */}
-        <div className="w-full h-40 bg-base-200 rounded-xl flex items-center justify-center">
-          <span className="text-base-content/30 text-sm">📷 Image coming soon</span>
-        </div>
+        {/* Image — real photo if available, initials fallback if not */}
+        {showImage ? (
+          <img
+            src={venue.image_url!}
+            alt={venue.name}
+            className="w-full h-40 object-cover rounded-xl"
+            onError={() => setImageError(true)}
+          />
+        ) : (
+          // Initials fallback — shows abbreviated name in a styled placeholder
+          <div className="w-full h-40 bg-base-200 rounded-xl flex items-center justify-center">
+            <span className="text-3xl font-black text-base-content/20">
+              {getInitials(venue.name)}
+            </span>
+          </div>
+        )}
 
         {/* Key details grid */}
         <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
@@ -58,26 +80,20 @@ function VenueCard({ venue }: VenueCardProps) {
           </div>
         </div>
 
-        {/* Star rating if available */}
         {venue.rating && <StarRating rating={venue.rating} />}
 
-        {/* Keywords */}
         {venue.keywords.length > 0 && (
           <div className="flex flex-wrap gap-1">
             {venue.keywords.map(keyword => (
-              <span key={keyword} className="badge badge-outline badge-sm">
-                {keyword}
-              </span>
+              <span key={keyword} className="badge badge-outline badge-sm">{keyword}</span>
             ))}
           </div>
         )}
 
-        {/* Description */}
         <p className="text-sm text-base-content/80">
           {expanded ? venue.expanded_description : venue.description}
         </p>
 
-        {/* Expand/collapse button */}
         <button
           onClick={() => setExpanded(!expanded)}
           className="btn btn-ghost btn-sm self-center"
@@ -86,8 +102,6 @@ function VenueCard({ venue }: VenueCardProps) {
           {expanded ? '▲ Show less' : '▼ Show more'}
         </button>
 
-        {/* Action buttons — directions and website */}
-        {/* Opens in a new tab so the user doesn't lose their results */}
         <div className="flex gap-2 mt-1">
           <a
             href={venue.directions_url}
@@ -97,7 +111,6 @@ function VenueCard({ venue }: VenueCardProps) {
           >
             📍 Directions
           </a>
-          {/* Only show website button if a website URL exists */}
           {venue.website_url && (
             <a
               href={venue.website_url}

@@ -156,7 +156,7 @@ def run_agent(
         {{
           "type": "event",
           "name": "event name",
-          "image_url": null,
+          "image_url": "use the Photo URL from the tool results if available, otherwise null",
           "location": "full address",
           "latitude": 51.5074,
           "longitude": -0.1278,
@@ -178,7 +178,7 @@ def run_agent(
         {{
           "type": "venue",
           "name": "venue name",
-          "image_url": null,
+          "image_url": "use the Photo URL from the tool results if available, otherwise null",
           "location": "full address",
           "latitude": 51.5074,
           "longitude": -0.1278,
