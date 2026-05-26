@@ -74,7 +74,7 @@ def search_google_places(query: str, location: str, latitude: Optional[float] = 
             return f"No venues found in {location}."
 
         results = []
-        for place in data["places"][:3]:
+        for place in data["places"][:5]:
             name = place.get("displayName", {}).get("text", "Unknown")
             address = place.get("formattedAddress", "No address")
             rating = place.get("rating", "No rating")

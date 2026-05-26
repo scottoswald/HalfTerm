@@ -1,16 +1,20 @@
 import { useLocation, useNavigate } from 'react-router-dom'
-import { useState, useMemo } from 'react'
+import { useState, useMemo, lazy, Suspense } from 'react'
 import type { SearchResults, SearchParams, Event, Venue } from './types'
 import EventCard from './components/EventCard'
 import VenueCard from './components/VenueCard'
 import SearchSummary from './components/SearchSummary'
 import FilterPanel from './components/FilterPanel'
 
-// ---- RESULTS PAGE ----
-// Thin orchestration layer — all card components live in src/components/
+// Lazy load the map component so Leaflet CSS and JS only loads when needed
+// This keeps the initial page load fast for users who don't use the map
+const MapView = lazy(() => import('./components/MapView'))
+
+// ---- LEAFLET CSS ----
+// Must be imported at the top level for Leaflet to render correctly
+import 'leaflet/dist/leaflet.css'
 
 // ---- HAVERSINE DISTANCE FORMULA ----
-// Calculates the distance in miles between two GPS coordinates
 function haversineDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
   const R = 3958.8
   const dLat = (lat2 - lat1) * Math.PI / 180
@@ -23,14 +27,12 @@ function haversineDistance(lat1: number, lon1: number, lat2: number, lon2: numbe
   return R * c
 }
 
-// Helper to extract a numeric cost for sorting
 function parseCost(cost: string): number {
   if (!cost || cost.toLowerCase() === 'free') return 0
   const match = cost.match(/[\d.]+/)
   return match ? parseFloat(match[0]) : 999
 }
 
-// Helper to check if a result matches the selected cost filter
 function matchesCostFilter(cost: string, filter: string): boolean {
   if (filter === 'any') return true
   const amount = parseCost(cost)
@@ -57,6 +59,9 @@ function Results() {
   const [sortBy, setSortBy] = useState('recommended')
   const [costFilter, setCostFilter] = useState('any')
   const [filterDrawerOpen, setFilterDrawerOpen] = useState(false)
+
+  // Toggle between card list view and map view
+  const [viewMode, setViewMode] = useState<'list' | 'map'>('list')
 
   const hasCoordinates = !!(currentSearchParams?.latitude && currentSearchParams?.longitude)
 
@@ -128,7 +133,6 @@ function Results() {
     return results
   }, [venuesWithDistance, sortBy, costFilter])
 
-  // Handle removing an activity pill and re-searching
   const handleRemoveActivity = async (activityToRemove: string) => {
     if (!currentSearchParams) return
     const newActivities = currentSearchParams.activities.filter(a => a !== activityToRemove)
@@ -159,7 +163,6 @@ function Results() {
     }
   }
 
-  // Error state
   if (!currentData || currentData.error) {
     return (
       <div className="min-h-screen bg-base-200 flex items-center justify-center p-6">
@@ -179,6 +182,10 @@ function Results() {
   const showEvents = activeTab === 'all' || activeTab === 'events'
   const showVenues = activeTab === 'all' || activeTab === 'venues'
 
+  // Events and venues shown on map depend on active tab
+  const mapEvents = showEvents ? filteredEvents : []
+  const mapVenues = showVenues ? filteredVenues : []
+
   return (
     <div className="min-h-screen bg-base-200">
       <div className="max-w-5xl mx-auto px-4 py-6">
@@ -197,8 +204,7 @@ function Results() {
           onRemoveActivity={handleRemoveActivity}
         />
 
-        {/* Extended search notice — shown when Claude went beyond the requested radius */}
-        {/* Uses a soft info style so it's visible but not alarming */}
+        {/* Extended search notice */}
         {currentData.search_extended && currentData.search_extended_message && (
           <div className="alert alert-info mb-4 text-sm">
             <span>ℹ️ {currentData.search_extended_message}</span>
@@ -218,26 +224,49 @@ function Results() {
             ← Update search
           </button>
 
-          {/* Venues / Events / All toggle */}
-          <div className="join">
-            <button
-              className={`join-item btn btn-sm ${activeTab === 'all' ? 'btn-primary' : 'btn-outline'}`}
-              onClick={() => setActiveTab('all')}
-            >
-              All
-            </button>
-            <button
-              className={`join-item btn btn-sm ${activeTab === 'venues' ? 'btn-primary' : 'btn-outline'}`}
-              onClick={() => setActiveTab('venues')}
-            >
-              Venues
-            </button>
-            <button
-              className={`join-item btn btn-sm ${activeTab === 'events' ? 'btn-primary' : 'btn-outline'}`}
-              onClick={() => setActiveTab('events')}
-            >
-              Events
-            </button>
+          {/* Centre controls — venues/events toggle and list/map toggle */}
+          <div className="flex items-center gap-2">
+
+            {/* Venues / Events / All toggle */}
+            <div className="join">
+              <button
+                className={`join-item btn btn-sm ${activeTab === 'all' ? 'btn-primary' : 'btn-outline'}`}
+                onClick={() => setActiveTab('all')}
+              >
+                All
+              </button>
+              <button
+                className={`join-item btn btn-sm ${activeTab === 'venues' ? 'btn-primary' : 'btn-outline'}`}
+                onClick={() => setActiveTab('venues')}
+              >
+                Venues
+              </button>
+              <button
+                className={`join-item btn btn-sm ${activeTab === 'events' ? 'btn-primary' : 'btn-outline'}`}
+                onClick={() => setActiveTab('events')}
+              >
+                Events
+              </button>
+            </div>
+
+            {/* List / Map toggle */}
+            <div className="join">
+              <button
+                className={`join-item btn btn-sm ${viewMode === 'list' ? 'btn-primary' : 'btn-outline'}`}
+                onClick={() => setViewMode('list')}
+                aria-label="List view"
+              >
+                ☰ List
+              </button>
+              <button
+                className={`join-item btn btn-sm ${viewMode === 'map' ? 'btn-primary' : 'btn-outline'}`}
+                onClick={() => setViewMode('map')}
+                aria-label="Map view"
+              >
+                🗺 Map
+              </button>
+            </div>
+
           </div>
 
           {/* Filter button — mobile only */}
@@ -249,67 +278,98 @@ function Results() {
           </button>
         </div>
 
-        {/* Main content — sidebar on desktop, single column on mobile */}
+        {/* Main content */}
         <div className="lg:grid lg:grid-cols-[240px_1fr] lg:gap-6">
 
-          {/* Sidebar filters — desktop only */}
-          <aside className="hidden lg:block">
-            <div className="card bg-base-100 shadow-sm border border-base-200 sticky top-6">
-              <div className="card-body py-5 px-5">
-                <h2 className="font-bold text-base mb-4">Filters</h2>
-                <FilterPanel
-                  sortBy={sortBy}
-                  setSortBy={setSortBy}
-                  costFilter={costFilter}
-                  setCostFilter={setCostFilter}
-                  namePrefix="sidebar-"
-                  hasCoordinates={hasCoordinates}
+          {/* Sidebar filters — desktop only, hidden in map view */}
+          {viewMode === 'list' && (
+            <aside className="hidden lg:block">
+              <div className="card bg-base-100 shadow-sm border border-base-200 sticky top-6">
+                <div className="card-body py-5 px-5">
+                  <h2 className="font-bold text-base mb-4">Filters</h2>
+                  <FilterPanel
+                    sortBy={sortBy}
+                    setSortBy={setSortBy}
+                    costFilter={costFilter}
+                    setCostFilter={setCostFilter}
+                    namePrefix="sidebar-"
+                    hasCoordinates={hasCoordinates}
+                  />
+                </div>
+              </div>
+            </aside>
+          )}
+
+          {/* Results — list or map */}
+          <div className={viewMode === 'map' ? 'lg:col-span-2' : ''}>
+
+            {/* ---- MAP VIEW ---- */}
+            {viewMode === 'map' && (
+              <Suspense fallback={
+                <div className="w-full h-[500px] bg-base-200 rounded-xl flex items-center justify-center">
+                  <span className="text-base-content/40 animate-pulse">Loading map...</span>
+                </div>
+              }>
+                <MapView
+                  events={mapEvents}
+                  venues={mapVenues}
+                  userLatitude={currentSearchParams?.latitude}
+                  userLongitude={currentSearchParams?.longitude}
                 />
-              </div>
-            </div>
-          </aside>
+                {/* Map legend */}
+                <div className="mt-3 flex items-center gap-4 text-sm text-base-content/60">
+                  <span>🔵 Your location</span>
+                  <span>🟠 Venues & Events</span>
+                  <span className="text-xs">Click a pin for details</span>
+                </div>
+              </Suspense>
+            )}
 
-          {/* Results column */}
-          <div className="flex flex-col gap-4">
+            {/* ---- LIST VIEW ---- */}
+            {viewMode === 'list' && (
+              <div className="flex flex-col gap-4">
 
-            {/* Venues section */}
-            {showVenues && filteredVenues.length > 0 && (
-              <>
-                {activeTab === 'all' && (
-                  <h3 className="font-semibold text-base-content/70 text-sm uppercase tracking-wide mt-2">
-                    Venues
-                  </h3>
+                {/* Venues section */}
+                {showVenues && filteredVenues.length > 0 && (
+                  <>
+                    {activeTab === 'all' && (
+                      <h3 className="font-semibold text-base-content/70 text-sm uppercase tracking-wide mt-2">
+                        Venues
+                      </h3>
+                    )}
+                    {filteredVenues.map((venue: Venue, index: number) => (
+                      <VenueCard key={index} venue={venue} />
+                    ))}
+                  </>
                 )}
-                {filteredVenues.map((venue: Venue, index: number) => (
-                  <VenueCard key={index} venue={venue} />
-                ))}
-              </>
-            )}
 
-            {/* Events section */}
-            {showEvents && filteredEvents.length > 0 && (
-              <>
-                {activeTab === 'all' && (
-                  <h3 className="font-semibold text-base-content/70 text-sm uppercase tracking-wide">
-                    Events
-                  </h3>
+                {/* Events section */}
+                {showEvents && filteredEvents.length > 0 && (
+                  <>
+                    {activeTab === 'all' && (
+                      <h3 className="font-semibold text-base-content/70 text-sm uppercase tracking-wide">
+                        Events
+                      </h3>
+                    )}
+                    {filteredEvents.map((event: Event, index: number) => (
+                      <EventCard key={index} event={event} />
+                    ))}
+                  </>
                 )}
-                {filteredEvents.map((event: Event, index: number) => (
-                  <EventCard key={index} event={event} />
-                ))}
-              </>
-            )}
 
-            {/* Empty states */}
-            {showEvents && filteredEvents.length === 0 && activeTab === 'events' && (
-              <div className="text-center py-12 text-base-content/50">
-                No events match your filters. Try adjusting the cost filter.
-              </div>
-            )}
+                {/* Empty states */}
+                {showEvents && filteredEvents.length === 0 && activeTab === 'events' && (
+                  <div className="text-center py-12 text-base-content/50">
+                    No events match your filters. Try adjusting the cost filter.
+                  </div>
+                )}
 
-            {showVenues && filteredVenues.length === 0 && activeTab === 'venues' && (
-              <div className="text-center py-12 text-base-content/50">
-                No venues match your filters. Try adjusting the cost filter.
+                {showVenues && filteredVenues.length === 0 && activeTab === 'venues' && (
+                  <div className="text-center py-12 text-base-content/50">
+                    No venues match your filters. Try adjusting the cost filter.
+                  </div>
+                )}
+
               </div>
             )}
 
