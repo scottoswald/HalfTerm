@@ -1,30 +1,21 @@
 import { useLocation, useNavigate } from 'react-router-dom'
-import { useState, useMemo, lazy, Suspense } from 'react'
+import { useEffect, useState, useMemo, lazy, Suspense } from 'react'
 import type { SearchResults, SearchParams, Event, Venue } from './types'
 import EventCard from './components/EventCard'
 import VenueCard from './components/VenueCard'
 import SearchSummary from './components/SearchSummary'
 import FilterPanel from './components/FilterPanel'
-
-// Lazy load the map component so Leaflet CSS and JS only loads when needed
-// This keeps the initial page load fast for users who don't use the map
-const MapView = lazy(() => import('./components/MapView'))
-
-// ---- LEAFLET CSS ----
-// Must be imported at the top level for Leaflet to render correctly
+import SkeletonCard from './components/SkeletonCard'
 import 'leaflet/dist/leaflet.css'
 
-// ---- HAVERSINE DISTANCE FORMULA ----
+const MapView = lazy(() => import('./components/MapView'))
+
 function haversineDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
   const R = 3958.8
   const dLat = (lat2 - lat1) * Math.PI / 180
   const dLon = (lon2 - lon1) * Math.PI / 180
-  const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-    Math.sin(dLon / 2) * Math.sin(dLon / 2)
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
-  return R * c
+  const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)**2
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a))
 }
 
 function parseCost(cost: string): number {
@@ -44,75 +35,91 @@ function matchesCostFilter(cost: string, filter: string): boolean {
   return true
 }
 
-// ---- MAIN RESULTS PAGE ----
 function Results() {
   const location = useLocation()
   const navigate = useNavigate()
 
   const initialData = location.state?.result as SearchResults | undefined
   const initialSearchParams = location.state?.searchParams as SearchParams | undefined
+  const isLoadingMode = location.state?.loading as boolean | undefined
+
+  const [currentSearchParams] = useState<SearchParams | undefined>(initialSearchParams)
+
+  // Two-stage results — venues load first (~5-8s), events load second (~15-25s)
+  const [venues, setVenues] = useState<Venue[]>(initialData?.venues || [])
+  const [events, setEvents] = useState<Event[]>(initialData?.events || [])
+  const [searchExtended, setSearchExtended] = useState(initialData?.search_extended || false)
+  const [searchExtendedMessage, setSearchExtendedMessage] = useState(initialData?.search_extended_message || '')
+  const [error, setError] = useState(initialData?.error || '')
+
+  // Loading states for each stage
+  const [venuesLoading, setVenuesLoading] = useState(!!isLoadingMode)
+  const [eventsLoading, setEventsLoading] = useState(!!isLoadingMode)
 
   const [activeTab, setActiveTab] = useState<'all' | 'events' | 'venues'>('all')
-  const [currentData, setCurrentData] = useState<SearchResults | undefined>(initialData)
-  const [currentSearchParams, setCurrentSearchParams] = useState<SearchParams | undefined>(initialSearchParams)
-  const [searching, setSearching] = useState(false)
   const [sortBy, setSortBy] = useState('recommended')
   const [costFilter, setCostFilter] = useState('any')
   const [filterDrawerOpen, setFilterDrawerOpen] = useState(false)
-
-  // Toggle between card list view and map view
   const [viewMode, setViewMode] = useState<'list' | 'map'>('list')
+  const [searching, setSearching] = useState(false)
 
   const hasCoordinates = !!(currentSearchParams?.latitude && currentSearchParams?.longitude)
 
-  // Add distance_miles to each result using Haversine formula
+  // ---- TWO-STAGE SEARCH ----
+  // When in loading mode, call both endpoints simultaneously
+  // Venues resolves first — cards appear after ~5-8s
+  // Events resolves second — cards appear after ~15-25s
+  useEffect(() => {
+    if (!isLoadingMode || !currentSearchParams) return
+
+    const apiUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000'
+    const body = JSON.stringify(currentSearchParams)
+    const headers = { 'Content-Type': 'application/json' }
+
+    // Venues — fast
+    fetch(`${apiUrl}/search/venues`, { method: 'POST', headers, body })
+      .then(r => r.json())
+      .then(data => {
+        setVenues(data.venues || [])
+        if (data.search_extended) setSearchExtended(true)
+        if (data.search_extended_message) setSearchExtendedMessage(data.search_extended_message)
+        if (data.error) setError(data.error)
+        setVenuesLoading(false)
+      })
+      .catch(err => { console.error('Venues search failed:', err); setVenuesLoading(false) })
+
+    // Events — slower
+    fetch(`${apiUrl}/search/events`, { method: 'POST', headers, body })
+      .then(r => r.json())
+      .then(data => {
+        setEvents(data.events || [])
+        if (data.search_extended) setSearchExtended(true)
+        if (data.search_extended_message) setSearchExtendedMessage(data.search_extended_message)
+        setEventsLoading(false)
+      })
+      .catch(err => { console.error('Events search failed:', err); setEventsLoading(false) })
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Add distance to results using Haversine formula
   const eventsWithDistance = useMemo(() => {
-    if (!currentData) return []
-    return currentData.events.map(event => {
-      if (
-        hasCoordinates &&
-        event.latitude != null &&
-        event.longitude != null &&
-        currentSearchParams?.latitude != null &&
-        currentSearchParams?.longitude != null
-      ) {
-        return {
-          ...event,
-          distance_miles: haversineDistance(
-            currentSearchParams.latitude,
-            currentSearchParams.longitude,
-            event.latitude,
-            event.longitude
-          )
-        }
+    if (!hasCoordinates || !currentSearchParams?.latitude || !currentSearchParams?.longitude) return events
+    return events.map(event => {
+      if (event.latitude != null && event.longitude != null) {
+        return { ...event, distance_miles: haversineDistance(currentSearchParams.latitude!, currentSearchParams.longitude!, event.latitude, event.longitude) }
       }
       return event
     })
-  }, [currentData, currentSearchParams, hasCoordinates])
+  }, [events, currentSearchParams, hasCoordinates])
 
   const venuesWithDistance = useMemo(() => {
-    if (!currentData) return []
-    return currentData.venues.map(venue => {
-      if (
-        hasCoordinates &&
-        venue.latitude != null &&
-        venue.longitude != null &&
-        currentSearchParams?.latitude != null &&
-        currentSearchParams?.longitude != null
-      ) {
-        return {
-          ...venue,
-          distance_miles: haversineDistance(
-            currentSearchParams.latitude,
-            currentSearchParams.longitude,
-            venue.latitude,
-            venue.longitude
-          )
-        }
+    if (!hasCoordinates || !currentSearchParams?.latitude || !currentSearchParams?.longitude) return venues
+    return venues.map(venue => {
+      if (venue.latitude != null && venue.longitude != null) {
+        return { ...venue, distance_miles: haversineDistance(currentSearchParams.latitude!, currentSearchParams.longitude!, venue.latitude, venue.longitude) }
       }
       return venue
     })
-  }, [currentData, currentSearchParams, hasCoordinates])
+  }, [venues, currentSearchParams, hasCoordinates])
 
   // Apply cost filtering and sorting
   const filteredEvents = useMemo(() => {
@@ -136,44 +143,38 @@ function Results() {
   const handleRemoveActivity = async (activityToRemove: string) => {
     if (!currentSearchParams) return
     const newActivities = currentSearchParams.activities.filter(a => a !== activityToRemove)
-    if (newActivities.length === 0) {
-      navigate('/')
-      return
-    }
+    if (newActivities.length === 0) { navigate('/'); return }
+
     setSearching(true)
-    try {
-      const apiUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000'
-      const response = await fetch(`${apiUrl}/search`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...currentSearchParams, activities: newActivities }),
-      })
-      const newData = await response.json()
-      setCurrentData(newData)
-      const newParams = { ...currentSearchParams, activities: newActivities }
-      setCurrentSearchParams(newParams)
-      navigate('/results', {
-        state: { result: newData, searchParams: newParams },
-        replace: true,
-      })
-    } catch (error) {
-      console.error('Re-search failed:', error)
-    } finally {
-      setSearching(false)
-    }
+    setVenuesLoading(true)
+    setEventsLoading(true)
+    setVenues([])
+    setEvents([])
+
+    const apiUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000'
+    const newParams = { ...currentSearchParams, activities: newActivities }
+    const body = JSON.stringify(newParams)
+    const headers = { 'Content-Type': 'application/json' }
+
+    fetch(`${apiUrl}/search/venues`, { method: 'POST', headers, body })
+      .then(r => r.json()).then(data => { setVenues(data.venues || []); setVenuesLoading(false) })
+      .catch(() => setVenuesLoading(false))
+
+    fetch(`${apiUrl}/search/events`, { method: 'POST', headers, body })
+      .then(r => r.json()).then(data => { setEvents(data.events || []); setEventsLoading(false) })
+      .catch(() => setEventsLoading(false))
+
+    setSearching(false)
   }
 
-  if (!currentData || currentData.error) {
+  // Error state — only shown when both stages failed and nothing loaded
+  if (error && !venues.length && !events.length && !venuesLoading && !eventsLoading) {
     return (
       <div className="min-h-screen bg-base-200 flex items-center justify-center p-6">
         <div className="w-full max-w-2xl text-center">
           <h1 className="text-4xl font-black text-primary mb-4">Halfterm</h1>
-          <p className="text-base-content/70 mb-6">
-            {currentData?.error || 'Sorry, something went wrong. Please try again.'}
-          </p>
-          <button onClick={() => navigate('/')} className="btn btn-primary">
-            ← Back to search
-          </button>
+          <p className="text-base-content/70 mb-6">{error || 'Sorry, something went wrong. Please try again.'}</p>
+          <button onClick={() => navigate('/')} className="btn btn-primary">← Back to search</button>
         </div>
       </div>
     )
@@ -182,141 +183,72 @@ function Results() {
   const showEvents = activeTab === 'all' || activeTab === 'events'
   const showVenues = activeTab === 'all' || activeTab === 'venues'
 
-  // Events and venues shown on map depend on active tab
-  const mapEvents = showEvents ? filteredEvents : []
-  const mapVenues = showVenues ? filteredVenues : []
-
   return (
     <div className="min-h-screen bg-base-200">
       <div className="max-w-5xl mx-auto px-4 py-6">
 
-        {/* Header */}
         <div className="text-center mb-6">
           <h1 className="text-4xl font-black text-primary mb-1">Halfterm</h1>
           <h2 className="text-xl font-semibold text-base-content mb-1">
-            Here's what you can do...
+            {venuesLoading && eventsLoading ? 'Finding the best options...' : "Here's what you can do..."}
           </h2>
         </div>
 
-        {/* Search summary pills */}
-        <SearchSummary
-          searchParams={currentSearchParams}
-          onRemoveActivity={handleRemoveActivity}
-        />
+        <SearchSummary searchParams={currentSearchParams} onRemoveActivity={handleRemoveActivity} />
 
-        {/* Extended search notice */}
-        {currentData.search_extended && currentData.search_extended_message && (
+        {searchExtended && searchExtendedMessage && (
           <div className="alert alert-info mb-4 text-sm">
-            <span>ℹ️ {currentData.search_extended_message}</span>
+            <span>ℹ️ {searchExtendedMessage}</span>
           </div>
         )}
 
-        {/* Updating results indicator */}
-        {searching && (
-          <p className="text-sm text-base-content/40 animate-pulse text-center mb-4">
-            Updating results...
-          </p>
-        )}
+        {searching && <p className="text-sm text-base-content/40 animate-pulse text-center mb-4">Updating results...</p>}
 
-        {/* Top controls */}
         <div className="flex items-center justify-between mb-6 gap-2">
-          <button onClick={() => navigate('/')} className="btn btn-outline btn-sm">
-            ← Update search
-          </button>
-
-          {/* Centre controls — venues/events toggle and list/map toggle */}
+          <button onClick={() => navigate('/')} className="btn btn-outline btn-sm">← Update search</button>
           <div className="flex items-center gap-2">
-
-            {/* Venues / Events / All toggle */}
             <div className="join">
-              <button
-                className={`join-item btn btn-sm ${activeTab === 'all' ? 'btn-primary' : 'btn-outline'}`}
-                onClick={() => setActiveTab('all')}
-              >
-                All
-              </button>
-              <button
-                className={`join-item btn btn-sm ${activeTab === 'venues' ? 'btn-primary' : 'btn-outline'}`}
-                onClick={() => setActiveTab('venues')}
-              >
-                Venues
-              </button>
-              <button
-                className={`join-item btn btn-sm ${activeTab === 'events' ? 'btn-primary' : 'btn-outline'}`}
-                onClick={() => setActiveTab('events')}
-              >
-                Events
+              <button className={`join-item btn btn-sm ${activeTab === 'all' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setActiveTab('all')}>All</button>
+              <button className={`join-item btn btn-sm ${activeTab === 'venues' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setActiveTab('venues')}>Venues</button>
+              <button className={`join-item btn btn-sm ${activeTab === 'events' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setActiveTab('events')}>Events</button>
+            </div>
+            <div className="join">
+              <button className={`join-item btn btn-sm ${viewMode === 'list' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setViewMode('list')} aria-label="List view">☰ List</button>
+              <button className={`join-item btn btn-sm ${viewMode === 'map' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setViewMode('map')} aria-label="Map view">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{display:'inline', marginRight:'4px'}}>
+                  <polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"/>
+                  <line x1="9" y1="3" x2="9" y2="18"/>
+                  <line x1="15" y1="6" x2="15" y2="21"/>
+                </svg>Map
               </button>
             </div>
-
-            {/* List / Map toggle */}
-            <div className="join">
-              <button
-                className={`join-item btn btn-sm ${viewMode === 'list' ? 'btn-primary' : 'btn-outline'}`}
-                onClick={() => setViewMode('list')}
-                aria-label="List view"
-              >
-                ☰ List
-              </button>
-              <button
-                className={`join-item btn btn-sm ${viewMode === 'map' ? 'btn-primary' : 'btn-outline'}`}
-                onClick={() => setViewMode('map')}
-                aria-label="Map view"
-              >
-                🗺 Map
-              </button>
-            </div>
-
           </div>
-
-          {/* Filter button — mobile only */}
-          <button
-            className="btn btn-primary btn-sm lg:hidden"
-            onClick={() => setFilterDrawerOpen(true)}
-          >
-            Filters
-          </button>
+          <button className="btn btn-primary btn-sm lg:hidden" onClick={() => setFilterDrawerOpen(true)}>Filters</button>
         </div>
 
-        {/* Main content */}
         <div className="lg:grid lg:grid-cols-[240px_1fr] lg:gap-6">
 
-          {/* Sidebar filters — desktop only, hidden in map view */}
           {viewMode === 'list' && (
             <aside className="hidden lg:block">
               <div className="card bg-base-100 shadow-sm border border-base-200 sticky top-6">
                 <div className="card-body py-5 px-5">
                   <h2 className="font-bold text-base mb-4">Filters</h2>
-                  <FilterPanel
-                    sortBy={sortBy}
-                    setSortBy={setSortBy}
-                    costFilter={costFilter}
-                    setCostFilter={setCostFilter}
-                    namePrefix="sidebar-"
-                    hasCoordinates={hasCoordinates}
-                  />
+                  <FilterPanel sortBy={sortBy} setSortBy={setSortBy} costFilter={costFilter} setCostFilter={setCostFilter} namePrefix="sidebar-" hasCoordinates={hasCoordinates} />
                 </div>
               </div>
             </aside>
           )}
 
-          {/* Results — list or map */}
           <div className={viewMode === 'map' ? 'lg:col-span-2' : ''}>
 
-            {/* ---- MAP VIEW ---- */}
             {viewMode === 'map' && (
-              <Suspense fallback={
-                <div className="w-full h-[500px] bg-base-200 rounded-xl flex items-center justify-center">
-                  <span className="text-base-content/40 animate-pulse">Loading map...</span>
-                </div>
-              }>
+              <Suspense fallback={<div className="w-full h-[500px] bg-base-200 rounded-xl flex items-center justify-center"><span className="text-base-content/40 animate-pulse">Loading map...</span></div>}>
                 <MapView
-                  events={mapEvents}
-                  venues={mapVenues}
+                  events={showEvents ? filteredEvents : []}
+                  venues={showVenues ? filteredVenues : []}
                   userLatitude={currentSearchParams?.latitude}
                   userLongitude={currentSearchParams?.longitude}
                 />
-                {/* Map legend */}
                 <div className="mt-3 flex items-center gap-4 text-sm text-base-content/60">
                   <span>🔵 Your location</span>
                   <span>🟠 Venues & Events</span>
@@ -325,101 +257,71 @@ function Results() {
               </Suspense>
             )}
 
-            {/* ---- LIST VIEW ---- */}
             {viewMode === 'list' && (
               <div className="flex flex-col gap-4">
 
-                {/* Venues section */}
-                {showVenues && filteredVenues.length > 0 && (
+                {/* Venues — skeleton while loading, real cards when ready */}
+                {showVenues && (
                   <>
                     {activeTab === 'all' && (
                       <h3 className="font-semibold text-base-content/70 text-sm uppercase tracking-wide mt-2">
                         Venues
+                        {venuesLoading && <span className="text-base-content/30 normal-case font-normal text-xs ml-2">loading...</span>}
                       </h3>
                     )}
-                    {filteredVenues.map((venue: Venue, index: number) => (
-                      <VenueCard key={index} venue={venue} />
-                    ))}
+                    {venuesLoading ? (
+                      <><SkeletonCard /><SkeletonCard /><SkeletonCard /></>
+                    ) : filteredVenues.length > 0 ? (
+                      filteredVenues.map((venue: Venue, index: number) => <VenueCard key={index} venue={venue} />)
+                    ) : activeTab === 'venues' ? (
+                      <div className="text-center py-12 text-base-content/50">No venues match your filters.</div>
+                    ) : null}
                   </>
                 )}
 
-                {/* Events section */}
-                {showEvents && filteredEvents.length > 0 && (
+                {/* Events — skeleton while loading, real cards when ready */}
+                {showEvents && (
                   <>
                     {activeTab === 'all' && (
                       <h3 className="font-semibold text-base-content/70 text-sm uppercase tracking-wide">
                         Events
+                        {eventsLoading && <span className="text-base-content/30 normal-case font-normal text-xs ml-2">loading...</span>}
                       </h3>
                     )}
-                    {filteredEvents.map((event: Event, index: number) => (
-                      <EventCard key={index} event={event} />
-                    ))}
+                    {eventsLoading ? (
+                      <><SkeletonCard /><SkeletonCard /><SkeletonCard /></>
+                    ) : filteredEvents.length > 0 ? (
+                      filteredEvents.map((event: Event, index: number) => <EventCard key={index} event={event} />)
+                    ) : activeTab === 'events' ? (
+                      <div className="text-center py-12 text-base-content/50">No events match your filters.</div>
+                    ) : null}
                   </>
-                )}
-
-                {/* Empty states */}
-                {showEvents && filteredEvents.length === 0 && activeTab === 'events' && (
-                  <div className="text-center py-12 text-base-content/50">
-                    No events match your filters. Try adjusting the cost filter.
-                  </div>
-                )}
-
-                {showVenues && filteredVenues.length === 0 && activeTab === 'venues' && (
-                  <div className="text-center py-12 text-base-content/50">
-                    No venues match your filters. Try adjusting the cost filter.
-                  </div>
                 )}
 
               </div>
             )}
-
           </div>
         </div>
 
-        {/* Bottom update search button */}
         <div className="mt-8 text-center">
-          <button onClick={() => navigate('/')} className="btn btn-outline">
-            ← Update search
-          </button>
+          <button onClick={() => navigate('/')} className="btn btn-outline">← Update search</button>
         </div>
 
       </div>
 
-      {/* Mobile filter drawer */}
       {filterDrawerOpen && (
         <>
-          <div
-            className="fixed inset-0 bg-black/40 z-40 lg:hidden"
-            onClick={() => setFilterDrawerOpen(false)}
-          />
+          <div className="fixed inset-0 bg-black/40 z-40 lg:hidden" onClick={() => setFilterDrawerOpen(false)} />
           <div className="fixed bottom-0 left-0 right-0 bg-base-100 rounded-t-2xl z-50 p-6 lg:hidden">
             <div className="flex justify-between items-center mb-6">
               <h2 className="font-bold text-lg">Filters</h2>
-              <button
-                className="btn btn-ghost btn-sm"
-                onClick={() => setFilterDrawerOpen(false)}
-              >
-                ✕
-              </button>
+              <button className="btn btn-ghost btn-sm" onClick={() => setFilterDrawerOpen(false)}>✕</button>
             </div>
-            <FilterPanel
-              sortBy={sortBy}
-              setSortBy={setSortBy}
-              costFilter={costFilter}
-              setCostFilter={setCostFilter}
-              namePrefix="drawer-"
-              hasCoordinates={hasCoordinates}
-            />
-            <button
-              className="btn btn-primary btn-block mt-6"
-              onClick={() => setFilterDrawerOpen(false)}
-            >
-              Apply filters
-            </button>
+            <FilterPanel sortBy={sortBy} setSortBy={setSortBy} costFilter={costFilter} setCostFilter={setCostFilter} namePrefix="drawer-" hasCoordinates={hasCoordinates} />
+            <button className="btn btn-primary btn-block mt-6" onClick={() => setFilterDrawerOpen(false)}>Apply filters</button>
           </div>
         </>
       )}
-
     </div>
   )
 }

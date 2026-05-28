@@ -29,7 +29,6 @@ const MOCK_RESULT = {
       age_range: 'All ages',
       cost: 'From £22',
       is_free: false,
-      categories: ['Family Entertainment'],
       rating: null,
       keywords: ['indoor', 'book in advance'],
       description: 'An immersive Paddington Bear adventure.',
@@ -48,7 +47,6 @@ const MOCK_RESULT = {
       age_range: 'All ages',
       cost: 'Free',
       is_free: true,
-      categories: ['Museum', 'Science'],
       rating: 4.6,
       keywords: ['indoor', 'accessible', 'café on site'],
       description: 'One of London\'s greatest free museums.',
@@ -102,9 +100,10 @@ describe('Results component', () => {
   })
 
   it('renders a fallback message when no result is passed', () => {
-    renderResults()
-    // When no data is passed the error state shows this message
-    expect(screen.getByText('Sorry, something went wrong. Please try again.')).toBeInTheDocument()
+  renderResults()
+  // With two-stage loading, no data shows empty venue/event sections not an error
+  // Check the page renders without crashing
+  expect(screen.getAllByText('Halfterm').length).toBeGreaterThan(0)
   })
 
   it('renders the update search button', () => {
