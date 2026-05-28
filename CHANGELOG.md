@@ -3,6 +3,45 @@
 All notable changes to Halfterm will be documented in this file.
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [3.4.0] - 2026-05-28
+
+### Added
+- GPS location search — "Use my current location" button using browser Geolocation API
+- Works on mobile and desktop (Chrome, Safari, Firefox)
+- Postcode search — automatically looks up coordinates via Postcodes.io (free, no API key needed)
+- Radius selector — 1, 2, 5, 10, 20 miles (default 5 miles)
+- Quick pick city dropdown — shortcut to populate location search box
+- Free text location input — accepts any postcode, town, city or village
+- Radius search across all three APIs — Ticketmaster, Eventbrite and Google Places
+- Distance calculation using Haversine formula
+- Distance badges on cards showing miles from user location
+- Closest first sort option in filter bar (enabled when coordinates available)
+- Graceful radius fallback — extends search beyond radius when too few results found, with explanatory message
+- "What kind of experience?" section — 9 optional ethos filters (Free & Low Cost, Accessible, Calm & Quiet etc)
+- Real images on venue cards from Google Places Photos API
+- Real images on event cards from Ticketmaster and Eventbrite
+- Initials fallback when no image available (e.g. "NHM" for Natural History Museum)
+- Map view — toggle between list and map, Leaflet with CartoDB Positron tiles
+- Orange pins for venues/events, blue pin for user location
+- Hover/click popups on map pins with mini card styling
+- Two-stage loading — venues appear first (~7s), events appear after (~15s)
+- Skeleton loading cards pulse while results load
+- Separate /search/venues and /search/events backend endpoints
+
+### Changed
+- Switched from Claude Opus to Claude Haiku for formatting — 5x speed improvement
+- Photo URLs extracted in Python before Claude responds — saves ~400 output tokens per search
+- Parallel tool calls — all APIs called simultaneously not sequentially
+- Search time reduced from ~90 seconds to ~7 seconds
+- Activity grid expanded to 5 results (was 3)
+- Google Places uses backend-specific API key (separate from frontend key)
+- Google Places frontend key restricted to specific website referrers
+
+### Fixed
+- package-lock.json sync issues in CI/CD
+- Radio button namePrefix conflicts in FilterPanel
+- Ages "All ages" no longer shows redundant "Ages All ages" on cards
+
 ## [3.4.0] - 2026-05-22
 
 ### Added
