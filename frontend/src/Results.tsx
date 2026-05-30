@@ -98,7 +98,8 @@ function Results() {
         setEventsLoading(false)
       })
       .catch(err => { console.error('Events search failed:', err); setEventsLoading(false) })
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps    
+    }, [])
 
   // Add distance to results using Haversine formula
   const eventsWithDistance = useMemo(() => {

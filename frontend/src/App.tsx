@@ -84,7 +84,6 @@ function App() {
   const [ageRange, setAgeRange] = useState('all ages')
   const [costRange, setCostRange] = useState('any')
   const [freeText, setFreeText] = useState('')
-  const [loading, setLoading] = useState(false)
 
   const toggleActivity = (value: string) => {
     setSelectedActivities(prev =>
@@ -142,8 +141,6 @@ function App() {
       return
     }
 
-    setLoading(true)
-
     const searchParams = {
       activities: selectedActivities.length > 0 ? selectedActivities : ['family activities'],
       vibes: selectedVibes,
@@ -161,7 +158,6 @@ function App() {
     // Results page will call both /search/venues and /search/events independently
     // Venues will appear first (~5-8s), events will follow (~15-25s)
     navigate('/results', { state: { searchParams, loading: true } })
-    setLoading(false)
   }
 
   return (
@@ -281,8 +277,8 @@ function App() {
               </div>
             </div>
 
-            <button className="btn btn-primary btn-block btn-lg mt-2" onClick={handleSearch} disabled={loading}>
-              {loading ? 'Searching...' : 'Search'}
+            <button className="btn btn-primary btn-block btn-lg mt-2" onClick={handleSearch}>
+              Search
             </button>
 
           </div>

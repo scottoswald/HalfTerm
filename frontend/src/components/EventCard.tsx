@@ -1,24 +1,15 @@
 import { useState } from 'react'
 import type { Event } from '../types'
 import StarRating from './StarRating'
+import { getInitials } from './cardUtils'
 
 // ---- EVENT CARD COMPONENT ----
 // Renders a single event card with expandable description
 // Events are ticketed, time-specific activities e.g. workshops, shows, performances
+// Distinct from venues which are permanent places families can visit
 
 interface EventCardProps {
   event: Event
-}
-
-// Generate initials from a name for the image fallback
-// e.g. "Natural History Museum" -> "NHM", "Paddington Bear Experience" -> "PBE"
-function getInitials(name: string): string {
-  return name
-    .split(' ')
-    .filter(word => word.length > 2) // Skip short words like "at", "the", "of"
-    .slice(0, 3)
-    .map(word => word[0].toUpperCase())
-    .join('')
 }
 
 function EventCard({ event }: EventCardProps) {
@@ -56,7 +47,6 @@ function EventCard({ event }: EventCardProps) {
             onError={() => setImageError(true)}
           />
         ) : (
-          // Initials fallback — shows abbreviated name in a styled placeholder
           <div className="w-full h-40 bg-base-200 rounded-xl flex items-center justify-center">
             <span className="text-3xl font-black text-base-content/20">
               {getInitials(event.name)}
@@ -106,22 +96,13 @@ function EventCard({ event }: EventCardProps) {
           {expanded ? '▲ Show less' : '▼ Show more'}
         </button>
 
+        {/* Action buttons — open in new tab so user doesn't lose results */}
         <div className="flex gap-2 mt-1">
-          <a
-            href={event.directions_url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="btn btn-outline btn-sm flex-1"
-          >
+          <a href={event.directions_url} target="_blank" rel="noopener noreferrer" className="btn btn-outline btn-sm flex-1">
             📍 Directions
           </a>
           {event.booking_url && (
-            <a
-              href={event.booking_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="btn btn-primary btn-sm flex-1"
-            >
+            <a href={event.booking_url} target="_blank" rel="noopener noreferrer" className="btn btn-primary btn-sm flex-1">
               Book Now →
             </a>
           )}

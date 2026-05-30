@@ -1,9 +1,13 @@
-from langchain_core.tools import tool
-from typing import Optional
+import logging
 import requests
 import os
+from langchain_core.tools import tool
+from typing import Optional
+
+logger = logging.getLogger(__name__)
 
 # Fallback coordinates for UK cities
+# Used when no GPS or postcode coordinates are provided
 UK_CITY_COORDINATES = {
     "London":     {"latitude": 51.5074, "longitude": -0.1278},
     "Manchester": {"latitude": 53.4808, "longitude": -2.2426},
@@ -21,7 +25,7 @@ UK_CITY_COORDINATES = {
     "Bath":       {"latitude": 51.3811, "longitude": -2.3590},
 }
 
-def search_google_places_raw(
+def search_google_places_with_photos(
     query: str,
     location: str,
     latitude: Optional[float] = None,
@@ -32,9 +36,11 @@ def search_google_places_raw(
     Search Google Places and return both a text summary for Claude
     and a dict of photo URLs keyed by venue name.
 
+    This is the primary production function used by agent.py.
+    Photo URLs are extracted here in Python so Claude doesn't generate them —
+    this saves ~400 output tokens per search and speeds up Claude significantly.
+
     Returns: (text_for_claude, photo_urls_by_name)
-    We extract photo URLs in Python so Claude doesn't have to generate them —
-    this saves ~400 output tokens and significantly speeds up Claude's response.
     """
     api_key = os.getenv("GOOGLE_PLACES_API_KEY_BACKEND")
 
@@ -79,7 +85,7 @@ def search_google_places_raw(
             rating = place.get("rating", "No rating")
             website = place.get("websiteUri", "No website")
 
-            # Extract photo URL in Python — not passed to Claude to save tokens
+            # Extract photo URL in Python — not passed to Claude to save output tokens
             photos = place.get("photos", [])
             if photos:
                 photo_name = photos[0].get("name", "")
@@ -99,9 +105,13 @@ def search_google_places_raw(
     except requests.exceptions.HTTPError as e:
         return f"Google Places returned an error: {str(e)}.", {}
     except Exception as e:
-        import logging
-        logging.getLogger(__name__).error(f"Unexpected error in search_google_places_raw: {str(e)}")
+        logger.error(f"Unexpected error in search_google_places_with_photos: {str(e)}")
         return "Something went wrong searching for venues.", {}
+
+
+# Keep old name as alias for backward compatibility
+# TODO: remove in v3.5.0 once all callers use the new name
+search_google_places_raw = search_google_places_with_photos
 
 
 @tool
@@ -115,15 +125,17 @@ def search_google_places(
     """
     Search for family friendly venues, museums, parks and attractions in a UK location
     using the Google Places API.
-    Returns venue details including address, rating, website and photo URL.
+    Returns venue details including address, rating and website.
     Use this tool to find permanent venues and attractions — museums, parks,
     science centres, zoos, theatres and similar places families can visit.
     Accepts optional coordinates for more accurate radius-based searching.
-    """
-    text, photo_urls = search_google_places_raw(query, location, latitude, longitude, radius_miles)
 
-    # For the tool version, include photo URLs in the text
-    # (used when called directly, not via the optimised agent path)
+    Note: This @tool version is kept for compatibility. In production, agent.py
+    calls search_google_places_with_photos directly to get photo URLs separately.
+    """
+    text, photo_urls = search_google_places_with_photos(query, location, latitude, longitude, radius_miles)
+
+    # Include photo URLs in the text output for the tool version
     if photo_urls:
         lines = text.split("\n\n")
         enhanced = []

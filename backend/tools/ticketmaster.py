@@ -4,6 +4,9 @@ from typing import Optional
 import requests
 import os
 import re
+import logging
+
+logger = logging.getLogger(__name__)
 
 def parse_date_range(date_str: str) -> tuple[str, str]:
     """
@@ -125,6 +128,5 @@ def search_ticketmaster_events(
         return f"Ticketmaster returned an error: {str(e)}. Please try again shortly."
 
     except Exception as e:
-        import logging
-        logging.getLogger(__name__).error(f"Unexpected error in search_ticketmaster_events: {str(e)}")
+        logger.error(f"Unexpected error in search_ticketmaster_events: {str(e)}")
         return "Something went wrong searching for events. Please try again."

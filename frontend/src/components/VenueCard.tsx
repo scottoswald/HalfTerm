@@ -1,24 +1,15 @@
 import { useState } from 'react'
 import type { Venue } from '../types'
 import StarRating from './StarRating'
+import { getInitials } from './cardUtils'
 
 // ---- VENUE CARD COMPONENT ----
 // Renders a single venue card with expandable description
 // Venues are permanent places families can visit e.g. museums, parks, zoos
+// Distinct from events which are time-specific ticketed activities
 
 interface VenueCardProps {
   venue: Venue
-}
-
-// Generate initials from a name for the image fallback
-// e.g. "Natural History Museum" -> "NHM", "Brighton Toy Museum" -> "BTM"
-function getInitials(name: string): string {
-  return name
-    .split(' ')
-    .filter(word => word.length > 2) // Skip short words like "at", "the", "of"
-    .slice(0, 3)
-    .map(word => word[0].toUpperCase())
-    .join('')
 }
 
 function VenueCard({ venue }: VenueCardProps) {
@@ -56,7 +47,6 @@ function VenueCard({ venue }: VenueCardProps) {
             onError={() => setImageError(true)}
           />
         ) : (
-          // Initials fallback — shows abbreviated name in a styled placeholder
           <div className="w-full h-40 bg-base-200 rounded-xl flex items-center justify-center">
             <span className="text-3xl font-black text-base-content/20">
               {getInitials(venue.name)}
@@ -102,22 +92,13 @@ function VenueCard({ venue }: VenueCardProps) {
           {expanded ? '▲ Show less' : '▼ Show more'}
         </button>
 
+        {/* Action buttons — open in new tab so user doesn't lose results */}
         <div className="flex gap-2 mt-1">
-          <a
-            href={venue.directions_url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="btn btn-outline btn-sm flex-1"
-          >
+          <a href={venue.directions_url} target="_blank" rel="noopener noreferrer" className="btn btn-outline btn-sm flex-1">
             📍 Directions
           </a>
           {venue.website_url && (
-            <a
-              href={venue.website_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="btn btn-primary btn-sm flex-1"
-            >
+            <a href={venue.website_url} target="_blank" rel="noopener noreferrer" className="btn btn-primary btn-sm flex-1">
               Visit Website →
             </a>
           )}

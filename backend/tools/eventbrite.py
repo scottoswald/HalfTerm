@@ -4,6 +4,9 @@ from typing import Optional
 import requests
 import re
 import os
+import logging
+
+logger = logging.getLogger(__name__)
 
 @tool
 def search_eventbrite_events(
@@ -122,6 +125,5 @@ def search_eventbrite_events(
         return f"Eventbrite returned an error: {str(e)}. Please try again shortly."
 
     except Exception as e:
-        import logging
-        logging.getLogger(__name__).error(f"Unexpected error in search_eventbrite_events: {str(e)}")
+        logger.error(f"Unexpected error in search_eventbrite_events: {str(e)}")
         return "Something went wrong searching Eventbrite. Please try again."
