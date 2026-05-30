@@ -84,6 +84,7 @@ function App() {
   const [ageRange, setAgeRange] = useState('all ages')
   const [costRange, setCostRange] = useState('any')
   const [freeText, setFreeText] = useState('')
+  const [quickPickCity, setQuickPickCity] = useState('')
 
   const toggleActivity = (value: string) => {
     setSelectedActivities(prev =>
@@ -132,7 +133,11 @@ function App() {
   }
 
   const handleQuickPickCity = (city: string) => {
-    setLocationText(city); setLatitude(null); setLongitude(null); setLocationStatus('idle')
+    setLocationText(city)
+    setQuickPickCity(city)
+    setLatitude(null)
+    setLongitude(null)
+    setLocationStatus('idle')
   }
 
   const handleSearch = async () => {
@@ -247,7 +252,7 @@ function App() {
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-sm text-base-content/60 shrink-0">Or quick pick a city:</span>
-                <select className="select select-bordered select-sm flex-1" value=""
+                <select className="select select-bordered select-sm flex-1" value={quickPickCity}
                   onChange={e => { if (e.target.value) handleQuickPickCity(e.target.value) }}>
                   <option value="" disabled>Select a city...</option>
                   {QUICK_PICK_CITIES.map(city => <option key={city} value={city}>{city}</option>)}

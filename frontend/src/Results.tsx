@@ -35,6 +35,9 @@ function matchesCostFilter(cost: string, filter: string): boolean {
   return true
 }
 
+// Number of results shown initially before "Show more" is clicked
+const INITIAL_RESULTS_COUNT = 3
+
 function Results() {
   const location = useLocation()
   const navigate = useNavigate()
@@ -45,14 +48,12 @@ function Results() {
 
   const [currentSearchParams] = useState<SearchParams | undefined>(initialSearchParams)
 
-  // Two-stage results — venues load first (~5-8s), events load second (~15-25s)
   const [venues, setVenues] = useState<Venue[]>(initialData?.venues || [])
   const [events, setEvents] = useState<Event[]>(initialData?.events || [])
   const [searchExtended, setSearchExtended] = useState(initialData?.search_extended || false)
   const [searchExtendedMessage, setSearchExtendedMessage] = useState(initialData?.search_extended_message || '')
   const [error, setError] = useState(initialData?.error || '')
 
-  // Loading states for each stage
   const [venuesLoading, setVenuesLoading] = useState(!!isLoadingMode)
   const [eventsLoading, setEventsLoading] = useState(!!isLoadingMode)
 
@@ -63,12 +64,13 @@ function Results() {
   const [viewMode, setViewMode] = useState<'list' | 'map'>('list')
   const [searching, setSearching] = useState(false)
 
+  // Show more state — tracks whether venues/events are expanded
+  const [venuesExpanded, setVenuesExpanded] = useState(false)
+  const [eventsExpanded, setEventsExpanded] = useState(false)
+
   const hasCoordinates = !!(currentSearchParams?.latitude && currentSearchParams?.longitude)
 
   // ---- TWO-STAGE SEARCH ----
-  // When in loading mode, call both endpoints simultaneously
-  // Venues resolves first — cards appear after ~5-8s
-  // Events resolves second — cards appear after ~15-25s
   useEffect(() => {
     if (!isLoadingMode || !currentSearchParams) return
 
@@ -76,7 +78,6 @@ function Results() {
     const body = JSON.stringify(currentSearchParams)
     const headers = { 'Content-Type': 'application/json' }
 
-    // Venues — fast
     fetch(`${apiUrl}/search/venues`, { method: 'POST', headers, body })
       .then(r => r.json())
       .then(data => {
@@ -88,7 +89,6 @@ function Results() {
       })
       .catch(err => { console.error('Venues search failed:', err); setVenuesLoading(false) })
 
-    // Events — slower
     fetch(`${apiUrl}/search/events`, { method: 'POST', headers, body })
       .then(r => r.json())
       .then(data => {
@@ -98,10 +98,9 @@ function Results() {
         setEventsLoading(false)
       })
       .catch(err => { console.error('Events search failed:', err); setEventsLoading(false) })
-    // eslint-disable-next-line react-hooks/exhaustive-deps    
-    }, [])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
-  // Add distance to results using Haversine formula
   const eventsWithDistance = useMemo(() => {
     if (!hasCoordinates || !currentSearchParams?.latitude || !currentSearchParams?.longitude) return events
     return events.map(event => {
@@ -122,7 +121,6 @@ function Results() {
     })
   }, [venues, currentSearchParams, hasCoordinates])
 
-  // Apply cost filtering and sorting
   const filteredEvents = useMemo(() => {
     let results = eventsWithDistance.filter(e => matchesCostFilter(e.cost, costFilter))
     if (sortBy === 'price_asc') results = [...results].sort((a, b) => parseCost(a.cost) - parseCost(b.cost))
@@ -141,6 +139,12 @@ function Results() {
     return results
   }, [venuesWithDistance, sortBy, costFilter])
 
+  // Slice results for display — show INITIAL_RESULTS_COUNT unless expanded
+  const visibleVenues = venuesExpanded ? filteredVenues : filteredVenues.slice(0, INITIAL_RESULTS_COUNT)
+  const visibleEvents = eventsExpanded ? filteredEvents : filteredEvents.slice(0, INITIAL_RESULTS_COUNT)
+  const hasMoreVenues = filteredVenues.length > INITIAL_RESULTS_COUNT
+  const hasMoreEvents = filteredEvents.length > INITIAL_RESULTS_COUNT
+
   const handleRemoveActivity = async (activityToRemove: string) => {
     if (!currentSearchParams) return
     const newActivities = currentSearchParams.activities.filter(a => a !== activityToRemove)
@@ -151,6 +155,8 @@ function Results() {
     setEventsLoading(true)
     setVenues([])
     setEvents([])
+    setVenuesExpanded(false)
+    setEventsExpanded(false)
 
     const apiUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000'
     const newParams = { ...currentSearchParams, activities: newActivities }
@@ -168,7 +174,6 @@ function Results() {
     setSearching(false)
   }
 
-  // Error state — only shown when both stages failed and nothing loaded
   if (error && !venues.length && !events.length && !venuesLoading && !eventsLoading) {
     return (
       <div className="min-h-screen bg-base-200 flex items-center justify-center p-6">
@@ -261,7 +266,7 @@ function Results() {
             {viewMode === 'list' && (
               <div className="flex flex-col gap-4">
 
-                {/* Venues — skeleton while loading, real cards when ready */}
+                {/* Venues section */}
                 {showVenues && (
                   <>
                     {activeTab === 'all' && (
@@ -273,14 +278,30 @@ function Results() {
                     {venuesLoading ? (
                       <><SkeletonCard /><SkeletonCard /><SkeletonCard /></>
                     ) : filteredVenues.length > 0 ? (
-                      filteredVenues.map((venue: Venue, index: number) => <VenueCard key={index} venue={venue} />)
+                      <>
+                        {visibleVenues.map((venue: Venue, index: number) => (
+                          <VenueCard key={index} venue={venue} />
+                        ))}
+                        {/* Show more / show less for venues */}
+                        {hasMoreVenues && (
+                          <button
+                            className="btn btn-outline btn-sm self-center mt-1"
+                            onClick={() => setVenuesExpanded(!venuesExpanded)}
+                          >
+                            {venuesExpanded
+                              ? '▲ Show less'
+                              : `▼ Show ${filteredVenues.length - INITIAL_RESULTS_COUNT} more venue${filteredVenues.length - INITIAL_RESULTS_COUNT > 1 ? 's' : ''}`
+                            }
+                          </button>
+                        )}
+                      </>
                     ) : activeTab === 'venues' ? (
                       <div className="text-center py-12 text-base-content/50">No venues match your filters.</div>
                     ) : null}
                   </>
                 )}
 
-                {/* Events — skeleton while loading, real cards when ready */}
+                {/* Events section */}
                 {showEvents && (
                   <>
                     {activeTab === 'all' && (
@@ -292,7 +313,23 @@ function Results() {
                     {eventsLoading ? (
                       <><SkeletonCard /><SkeletonCard /><SkeletonCard /></>
                     ) : filteredEvents.length > 0 ? (
-                      filteredEvents.map((event: Event, index: number) => <EventCard key={index} event={event} />)
+                      <>
+                        {visibleEvents.map((event: Event, index: number) => (
+                          <EventCard key={index} event={event} />
+                        ))}
+                        {/* Show more / show less for events */}
+                        {hasMoreEvents && (
+                          <button
+                            className="btn btn-outline btn-sm self-center mt-1"
+                            onClick={() => setEventsExpanded(!eventsExpanded)}
+                          >
+                            {eventsExpanded
+                              ? '▲ Show less'
+                              : `▼ Show ${filteredEvents.length - INITIAL_RESULTS_COUNT} more event${filteredEvents.length - INITIAL_RESULTS_COUNT > 1 ? 's' : ''}`
+                            }
+                          </button>
+                        )}
+                      </>
                     ) : activeTab === 'events' ? (
                       <div className="text-center py-12 text-base-content/50">No events match your filters.</div>
                     ) : null}
