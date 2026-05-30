@@ -3,124 +3,280 @@ from fastapi.testclient import TestClient
 from unittest.mock import patch
 from main import app
 
-# TestClient wraps our FastAPI app and lets us make
-# HTTP requests without running a real server
 client = TestClient(app)
 
-# Valid request body matching the new SearchRequest model
-# Used across multiple tests to avoid repetition
+# Valid request body matching the current SearchRequest model
+# Includes all fields the frontend sends including vibes, latitude, longitude
 VALID_REQUEST = {
     "activities": ["Museums", "Outdoor Activities"],
+    "vibes": [],
     "location": "London",
+    "latitude": None,
+    "longitude": None,
+    "radius_miles": 5,
     "date": "today",
     "age_range": "all ages",
-    "cost_range": "any"
+    "cost_range": "any",
+    "free_text": None
 }
 
-# ---- HEALTH CHECK TESTS ----
+# Mock return value for combined search
+MOCK_AGENT_RESULT = {
+    "search_summary": "Museums in London, All ages, Any budget",
+    "search_extended": False,
+    "search_extended_message": None,
+    "events": [],
+    "venues": []
+}
+
+# Mock return values for split search endpoints
+MOCK_VENUES_RESULT = {
+    "search_summary": "Museums in London",
+    "search_extended": False,
+    "search_extended_message": None,
+    "events": [],
+    "venues": [{"name": "British Museum", "type": "venue"}]
+}
+
+MOCK_EVENTS_RESULT = {
+    "search_summary": "Museums in London",
+    "search_extended": False,
+    "search_extended_message": None,
+    "events": [{"name": "Science Workshop", "type": "event"}],
+    "venues": []
+}
+
+# ---- HEALTH CHECK ----
 
 def test_root_endpoint():
-    # Make a GET request to the root endpoint
     response = client.get("/")
-
-    # Assert the status code is 200 (success)
     assert response.status_code == 200
-
-    # Assert the response contains our expected message
     assert response.json() == {"message": "Halfterm backend is running"}
 
-# ---- SEARCH ENDPOINT TESTS ----
+# ---- COMBINED SEARCH (/search) ----
 
 def test_search_endpoint_returns_200():
-    # patch() temporarily replaces run_agent with a fake version
-    # This means the test never makes a real API call to Claude
     with patch('routes.search.run_agent') as mock_agent:
-        mock_agent.return_value = "Some museum activities for kids"
-
+        mock_agent.return_value = MOCK_AGENT_RESULT
         response = client.post("/search", json=VALID_REQUEST)
-
         assert response.status_code == 200
 
-def test_search_endpoint_returns_result():
+def test_search_endpoint_returns_structured_result():
     with patch('routes.search.run_agent') as mock_agent:
-        # run_agent now returns a structured dict not a string
-        mock_agent.return_value = {
-            "search_summary": "Museums in London",
-            "events": [],
-            "venues": []
-        }
-
+        mock_agent.return_value = MOCK_AGENT_RESULT
         response = client.post("/search", json=VALID_REQUEST)
         data = response.json()
-
-        # Assert the response has the new structured fields
         assert "search_summary" in data
         assert "events" in data
         assert "venues" in data
 
-def test_search_endpoint_returns_correct_result():
+def test_search_endpoint_returns_correct_summary():
     with patch('routes.search.run_agent') as mock_agent:
-        # Set a specific structured return value so we can assert exactly what comes back
-        mock_agent.return_value = {
-            "search_summary": "Museums in London, All ages, Any budget",
-            "events": [],
-            "venues": []
-        }
-
+        mock_agent.return_value = MOCK_AGENT_RESULT
         response = client.post("/search", json=VALID_REQUEST)
         data = response.json()
-
-        # Assert the search summary matches exactly what our mock returned
         assert data["search_summary"] == "Museums in London, All ages, Any budget"
         assert isinstance(data["events"], list)
         assert isinstance(data["venues"], list)
 
 def test_search_endpoint_rejects_missing_fields():
-    # Send an incomplete request — missing required fields
-    # FastAPI should reject this with a 422 status code
     response = client.post("/search", json={
         "activities": ["Museums"],
         "location": "London"
-        # missing date, age_range, cost_range
+        # missing required fields
     })
-
-    # 422 means the request was rejected due to validation failure
     assert response.status_code == 422
 
 def test_search_endpoint_handles_agent_error():
     with patch('routes.search.run_agent') as mock_agent:
-        # Make the fake run_agent throw an exception
-        # This simulates something going wrong inside the agent
         mock_agent.side_effect = Exception("Something went wrong")
-
         response = client.post("/search", json=VALID_REQUEST)
-
-        # Our error handling should catch this and return 500
         assert response.status_code == 500
 
 def test_search_endpoint_called_with_correct_arguments():
     with patch('routes.search.run_agent') as mock_agent:
-        mock_agent.return_value = "Some results"
-
+        mock_agent.return_value = MOCK_AGENT_RESULT
         client.post("/search", json=VALID_REQUEST)
-
-        # Assert run_agent was called with the correct keyword arguments
-        # Note: date is resolved before reaching run_agent so we check
-        # that it starts with 'today' rather than an exact match
-        # since the exact date changes daily
         call_kwargs = mock_agent.call_args.kwargs
         assert call_kwargs['activities'] == ["Museums", "Outdoor Activities"]
         assert call_kwargs['location'] == "London"
         assert call_kwargs['date'].startswith('today')
         assert call_kwargs['age_range'] == "all ages"
         assert call_kwargs['cost_range'] == "any"
+        assert call_kwargs['vibes'] == []
+        assert call_kwargs['latitude'] is None
+        assert call_kwargs['longitude'] is None
+        assert call_kwargs['radius_miles'] == 5
 
-def test_ConnectionError_runs_as_expected():
+def test_search_endpoint_connection_error_returns_503():
     with patch('routes.search.run_agent') as mock_agent:
         mock_agent.side_effect = ConnectionError("Something went wrong")
-
         response = client.post("/search", json=VALID_REQUEST)
         data = response.json()
-
         assert response.status_code == 503
         assert data["detail"] == "Could not connect to external services. Please try again shortly."
+
+# ---- VENUES SEARCH (/search/venues) ----
+
+def test_venues_endpoint_returns_200():
+    with patch('routes.search.run_venues_search') as mock_venues:
+        mock_venues.return_value = MOCK_VENUES_RESULT
+        response = client.post("/search/venues", json=VALID_REQUEST)
+        assert response.status_code == 200
+
+def test_venues_endpoint_returns_venues():
+    with patch('routes.search.run_venues_search') as mock_venues:
+        mock_venues.return_value = MOCK_VENUES_RESULT
+        response = client.post("/search/venues", json=VALID_REQUEST)
+        data = response.json()
+        assert "venues" in data
+        assert isinstance(data["venues"], list)
+
+def test_venues_endpoint_called_with_correct_arguments():
+    with patch('routes.search.run_venues_search') as mock_venues:
+        mock_venues.return_value = MOCK_VENUES_RESULT
+        client.post("/search/venues", json=VALID_REQUEST)
+        call_kwargs = mock_venues.call_args.kwargs
+        assert call_kwargs['activities'] == ["Museums", "Outdoor Activities"]
+        assert call_kwargs['location'] == "London"
+        assert call_kwargs['vibes'] == []
+        assert call_kwargs['radius_miles'] == 5
+
+def test_venues_endpoint_handles_error():
+    with patch('routes.search.run_venues_search') as mock_venues:
+        mock_venues.side_effect = Exception("Something went wrong")
+        response = client.post("/search/venues", json=VALID_REQUEST)
+        assert response.status_code == 500
+
+# ---- EVENTS SEARCH (/search/events) ----
+
+def test_events_endpoint_returns_200():
+    with patch('routes.search.run_events_search') as mock_events:
+        mock_events.return_value = MOCK_EVENTS_RESULT
+        response = client.post("/search/events", json=VALID_REQUEST)
+        assert response.status_code == 200
+
+def test_events_endpoint_returns_events():
+    with patch('routes.search.run_events_search') as mock_events:
+        mock_events.return_value = MOCK_EVENTS_RESULT
+        response = client.post("/search/events", json=VALID_REQUEST)
+        data = response.json()
+        assert "events" in data
+        assert isinstance(data["events"], list)
+
+def test_events_endpoint_called_with_correct_arguments():
+    with patch('routes.search.run_events_search') as mock_events:
+        mock_events.return_value = MOCK_EVENTS_RESULT
+        client.post("/search/events", json=VALID_REQUEST)
+        call_kwargs = mock_events.call_args.kwargs
+        assert call_kwargs['activities'] == ["Museums", "Outdoor Activities"]
+        assert call_kwargs['location'] == "London"
+        assert call_kwargs['vibes'] == []
+        assert call_kwargs['radius_miles'] == 5
+
+def test_events_endpoint_handles_error():
+    with patch('routes.search.run_events_search') as mock_events:
+        mock_events.side_effect = Exception("Something went wrong")
+        response = client.post("/search/events", json=VALID_REQUEST)
+        assert response.status_code == 500
+
+# ---- VIBES EXTRACTION ----
+
+def test_vibes_values_extracted_before_agent():
+    """Vibes arrive as {label, value} objects but agent receives only value strings."""
+    with patch('routes.search.run_agent') as mock_agent:
+        mock_agent.return_value = MOCK_AGENT_RESULT
+        request_with_vibes = {
+            **VALID_REQUEST,
+            "vibes": [
+                {"label": "Accessible", "value": "accessible and inclusive for children with additional needs"},
+                {"label": "Free & Low Cost", "value": "free and low cost, suitable for families on a tight budget"}
+            ]
+        }
+        client.post("/search", json=request_with_vibes)
+        call_kwargs = mock_agent.call_args.kwargs
+        # Agent should receive only the value strings, not the full objects
+        assert call_kwargs['vibes'] == [
+            "accessible and inclusive for children with additional needs",
+            "free and low cost, suitable for families on a tight budget"
+        ]
+
+# ---- AGENT UTILITY TESTS ----
+
+def test_parse_response_valid_json():
+    from agent import parse_response
+    result = parse_response(
+        '{"search_summary": "test", "events": [], "venues": [], "search_extended": false, "search_extended_message": null}',
+        "Museums", "London"
+    )
+    assert result["search_summary"] == "test"
+    assert result["events"] == []
+    assert result["venues"] == []
+
+def test_parse_response_with_markdown_fences():
+    from agent import parse_response
+    fenced = '```json\n{"search_summary": "test", "events": [], "venues": [], "search_extended": false, "search_extended_message": null}\n```'
+    result = parse_response(fenced, "Museums", "London")
+    assert result["search_summary"] == "test"
+
+def test_parse_response_invalid_json_returns_error():
+    from agent import parse_response
+    result = parse_response("not valid json at all", "Museums", "London")
+    assert result["events"] == []
+    assert result["venues"] == []
+    assert "error" in result
+
+def test_inject_venue_photos_exact_match():
+    from agent import inject_venue_photos
+    venues = [{"name": "British Museum", "image_url": None}]
+    photo_urls = {"British Museum": "https://example.com/photo.jpg"}
+    result = inject_venue_photos(venues, photo_urls)
+    assert result[0]["image_url"] == "https://example.com/photo.jpg"
+
+def test_inject_venue_photos_partial_match():
+    from agent import inject_venue_photos
+    # Claude sometimes reformats "The British Museum" to "British Museum"
+    venues = [{"name": "The British Museum", "image_url": None}]
+    photo_urls = {"British Museum": "https://example.com/photo.jpg"}
+    result = inject_venue_photos(venues, photo_urls)
+    assert result[0]["image_url"] == "https://example.com/photo.jpg"
+
+def test_inject_venue_photos_no_match_leaves_none():
+    from agent import inject_venue_photos
+    venues = [{"name": "Unknown Venue", "image_url": None}]
+    photo_urls = {"British Museum": "https://example.com/photo.jpg"}
+    result = inject_venue_photos(venues, photo_urls)
+    assert result[0]["image_url"] is None
+
+def test_inject_venue_photos_empty_dict():
+    from agent import inject_venue_photos
+    venues = [{"name": "British Museum", "image_url": None}]
+    result = inject_venue_photos(venues, {})
+    assert result[0]["image_url"] is None
+
+# ---- DATE RESOLVER TESTS ----
+
+def test_date_resolver_today():
+    from utils.date_resolver import resolve_date
+    result = resolve_date("today")
+    assert result.startswith("today (")
+
+def test_date_resolver_tomorrow():
+    from utils.date_resolver import resolve_date
+    result = resolve_date("tomorrow")
+    assert result.startswith("tomorrow (")
+
+def test_date_resolver_this_weekend():
+    from utils.date_resolver import resolve_date
+    result = resolve_date("this weekend")
+    assert "this weekend" in result or "Saturday" in result
+
+def test_date_resolver_next_week():
+    from utils.date_resolver import resolve_date
+    result = resolve_date("next week")
+    assert "next week" in result or "Monday" in result
+
+def test_date_resolver_unknown_input_returned_unchanged():
+    from utils.date_resolver import resolve_date
+    result = resolve_date("some unknown date string")
+    assert result == "some unknown date string"
