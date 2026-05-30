@@ -1,12 +1,21 @@
-from langchain_core.tools import tool
-from datetime import datetime
-from typing import Optional
+import logging
 import requests
 import os
 import re
-import logging
+from datetime import datetime
+from typing import Optional
+from langchain_core.tools import tool
 
 logger = logging.getLogger(__name__)
+
+# Ticketmaster classification names for specific category searches
+# These map to Ticketmaster's taxonomy for more accurate results
+CLASSIFICATION_MAP = {
+    "Theatre and Shows": "Arts & Theatre",
+    "Music": "Music",
+    "Sports": "Sports",
+    "Fairs and Festivals": "Miscellaneous",
+}
 
 def parse_date_range(date_str: str) -> tuple[str, str]:
     """
@@ -47,24 +56,28 @@ def search_ticketmaster_events(
     date: str,
     latitude: Optional[float] = None,
     longitude: Optional[float] = None,
-    radius_miles: Optional[int] = 5
+    radius_miles: Optional[int] = 5,
+    category: Optional[str] = None
 ) -> str:
     """
     Search for kids and family events using the Ticketmaster API.
     Returns a list of live events with venue, date, time, booking links and image URLs.
     Use this tool to find ticketed events and attractions happening on the specified dates.
     Works for any UK city and any type of family activity.
-    Always use this tool when searching for live events, shows, attractions or activities.
+    Accepts optional category for more specific classification-based searching.
     Accepts optional coordinates for radius-based searching.
     """
     api_key = os.getenv("TICKETMASTER_API_KEY")
     start_datetime, end_datetime = parse_date_range(date)
 
+    # Use category-specific classification if available, otherwise default to family
+    classification = CLASSIFICATION_MAP.get(category or "", "family")
+
     try:
         params = {
             "apikey": api_key,
             "countryCode": "GB",
-            "classificationName": "family",
+            "classificationName": classification,
             "startDateTime": start_datetime,
             "endDateTime": end_datetime,
             "size": 5,
@@ -86,7 +99,7 @@ def search_ticketmaster_events(
         data = response.json()
 
         if "_embedded" not in data or "events" not in data["_embedded"]:
-            return f"No family events found in {location} for the selected dates on Ticketmaster."
+            return f"No events found in {location} for the selected dates on Ticketmaster."
 
         results = []
         for event in data["_embedded"]["events"]:
@@ -100,12 +113,10 @@ def search_ticketmaster_events(
             event_date = date_info.get("localDate", "Date unknown")
             event_time = date_info.get("localTime", "Time unknown")
 
-            # Extract the best available image from Ticketmaster
-            # Ticketmaster returns multiple image sizes — we prefer 16:9 ratio at medium size
+            # Extract the best available image — prefer 16:9 ratio at width >= 640px
             image_url = "No photo"
             images = event.get("images", [])
             if images:
-                # Try to find a 16:9 ratio image first, fall back to first available
                 preferred = [img for img in images if img.get("ratio") == "16_9" and img.get("width", 0) >= 640]
                 chosen = preferred[0] if preferred else images[0]
                 image_url = chosen.get("url", "No photo")
