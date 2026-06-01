@@ -7,6 +7,7 @@ import SearchSummary from './components/SearchSummary'
 import FilterPanel from './components/FilterPanel'
 import SkeletonCard from './components/SkeletonCard'
 import 'leaflet/dist/leaflet.css'
+import FeedbackBanner from './components/FeedbackBanner'
 
 const MapView = lazy(() => import('./components/MapView'))
 
@@ -190,7 +191,7 @@ function Results() {
   const showVenues = activeTab === 'all' || activeTab === 'venues'
 
   return (
-    <div className="min-h-screen bg-base-200">
+    <div className="min-h-screen bg-base-200 pb-16">
       <div className="max-w-5xl mx-auto px-4 py-6">
 
         <div className="text-center mb-6">
@@ -360,6 +361,7 @@ function Results() {
           </div>
         </>
       )}
+      <FeedbackBanner />
     </div>
   )
 }

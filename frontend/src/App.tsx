@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { SelectedVibe } from './types'
+import FeedbackBanner from './components/FeedbackBanner'
 
 const ACTIVITIES = [
   { emoji: '🏛️', label: 'Museums', subtitle: 'Heritage, Galleries, Castles', value: 'Museums' },
@@ -166,7 +167,7 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen bg-base-200 flex items-center justify-center p-6">
+    <div className="min-h-screen bg-base-200 flex items-center justify-center p-6 pb-16">
       <div className="w-full max-w-2xl">
 
         <div className="text-center mb-8">
@@ -289,6 +290,7 @@ function App() {
           </div>
         </div>
       </div>
+      <FeedbackBanner />
     </div>
   )
 }
