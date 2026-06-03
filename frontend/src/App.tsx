@@ -184,7 +184,7 @@ function App() {
                 <span className="label-text font-semibold text-base">What are you looking for?</span>
                 <span className="label-text-alt text-base-content/50">Pick one or more</span>
               </label>
-              <div className="grid grid-cols-4 gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                 {ACTIVITIES.map(activity => (
                   <button key={activity.value} onClick={() => toggleActivity(activity.value)}
                     className={`btn btn-sm flex-col h-auto py-3 gap-0.5 ${selectedActivities.includes(activity.value) ? 'btn-primary' : 'btn-outline'}`}>
@@ -241,15 +241,18 @@ function App() {
                 value={locationText === 'Current location' ? '' : locationText}
                 onChange={e => handleLocationChange(e.target.value)} />
               <div className="flex items-center gap-2 mb-3">
-                <span className="text-sm text-base-content/60 shrink-0">Within:</span>
-                <div className="flex gap-1 flex-wrap">
-                  {RADIUS_OPTIONS.map(miles => (
-                    <button key={miles} onClick={() => setRadiusMiles(miles)}
-                      className={`btn btn-xs ${radiusMiles === miles ? 'btn-primary' : 'btn-outline'}`}>
-                      {miles}mi
-                    </button>
-                  ))}
-                </div>
+                <span className="text-sm text-base-content/60 shrink-0">Within (miles):</span>
+                  <div className="flex gap-1">
+                    {RADIUS_OPTIONS.map(miles => (
+                      <button
+                        key={miles}
+                        onClick={() => setRadiusMiles(miles)}
+                        className={`btn btn-xs px-1.5 ${radiusMiles === miles ? 'btn-primary' : 'btn-outline'}`}
+                      >
+                        {miles}
+                      </button>
+                    ))}
+                  </div>
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-sm text-base-content/60 shrink-0">Or quick pick a city:</span>
@@ -262,7 +265,7 @@ function App() {
             </div>
 
             {/* When / Who / Budget */}
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-3 gap-2">
               <div>
                 <label className="label"><span className="label-text font-semibold">When?</span></label>
                 <select className="select select-bordered w-full" value={date} onChange={e => setDate(e.target.value)}>
@@ -270,7 +273,7 @@ function App() {
                 </select>
               </div>
               <div>
-                <label className="label"><span className="label-text font-semibold">Who's coming?</span></label>
+                <label className="label"><span className="label-text font-semibold text-sm">Ages?</span></label>
                 <select className="select select-bordered w-full" value={ageRange} onChange={e => setAgeRange(e.target.value)}>
                   {AGE_RANGES.map(a => <option key={a.value} value={a.value}>{a.label}</option>)}
                 </select>

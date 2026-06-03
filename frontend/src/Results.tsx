@@ -211,9 +211,9 @@ function Results() {
 
         {searching && <p className="text-sm text-base-content/40 animate-pulse text-center mb-4">Updating results...</p>}
 
-        <div className="flex items-center justify-between mb-6 gap-2">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between mb-6 gap-2">
           <button onClick={() => navigate('/')} className="btn btn-outline btn-sm">← Update search</button>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap justify-center">
             <div className="join">
               <button className={`join-item btn btn-sm ${activeTab === 'all' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setActiveTab('all')}>All</button>
               <button className={`join-item btn btn-sm ${activeTab === 'venues' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setActiveTab('venues')}>Venues</button>

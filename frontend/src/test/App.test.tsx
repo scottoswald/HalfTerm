@@ -41,7 +41,7 @@ describe('App component', () => {
   it('renders date, age and budget dropdowns', () => {
     render(<MemoryRouter><App /></MemoryRouter>)
     expect(screen.getByText('When?')).toBeInTheDocument()
-    expect(screen.getByText("Who's coming?")).toBeInTheDocument()
+    expect(screen.getByText("Ages?")).toBeInTheDocument()
     expect(screen.getByText('Budget?')).toBeInTheDocument()
   })
 
@@ -79,9 +79,9 @@ describe('App component', () => {
 
   it('renders radius selector buttons', () => {
     render(<MemoryRouter><App /></MemoryRouter>)
-    expect(screen.getByText('1mi')).toBeInTheDocument()
-    expect(screen.getByText('5mi')).toBeInTheDocument()
-    expect(screen.getByText('20mi')).toBeInTheDocument()
+    expect(screen.getByText('1')).toBeInTheDocument()
+    expect(screen.getByText('5')).toBeInTheDocument()
+    expect(screen.getByText('20')).toBeInTheDocument()
   })
 
   it('search button is enabled before clicking', async () => {
