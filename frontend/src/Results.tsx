@@ -75,6 +75,9 @@ function Results() {
   useEffect(() => {
     if (!isLoadingMode || !currentSearchParams) return
 
+    // Scroll to top when results load
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+
     const apiUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000'
     const body = JSON.stringify(currentSearchParams)
     const headers = { 'Content-Type': 'application/json' }
@@ -212,7 +215,7 @@ function Results() {
         {searching && <p className="text-sm text-base-content/40 animate-pulse text-center mb-4">Updating results...</p>}
 
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between mb-6 gap-2">
-          <button onClick={() => navigate('/')} className="btn btn-outline btn-sm">← Update search</button>
+          <button onClick={() => navigate('/')} className="btn btn-outline btn-sm">← New search</button>
           <div className="flex items-center gap-2 flex-wrap justify-center">
             <div className="join">
               <button className={`join-item btn btn-sm ${activeTab === 'all' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setActiveTab('all')}>All</button>
@@ -343,7 +346,7 @@ function Results() {
         </div>
 
         <div className="mt-8 text-center">
-          <button onClick={() => navigate('/')} className="btn btn-outline">← Update search</button>
+          <button onClick={() => navigate('/')} className="btn btn-outline">← New search</button>
         </div>
 
       </div>

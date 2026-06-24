@@ -111,7 +111,7 @@ describe('Results component', () => {
   it('renders the update search button', () => {
     renderResults({ result: MOCK_RESULT })
     // Two buttons exist — top and bottom of the page
-    const buttons = screen.getAllByText('← Update search')
+    const buttons = screen.getAllByText('← New search')
     expect(buttons.length).toBeGreaterThan(0)
   })
 

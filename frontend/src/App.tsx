@@ -216,7 +216,7 @@ function App() {
               <div className="grid grid-cols-3 gap-2">
                 {EXPERIENCE_VIBES.map(vibe => (
                   <button key={vibe.value} onClick={() => toggleVibe(vibe)}
-                    className={`btn btn-sm flex-col h-auto py-2 gap-0.5 ${selectedVibes.some(v => v.value === vibe.value) ? 'btn-secondary' : 'btn-ghost border border-base-300'}`}>
+                    className={`btn btn-sm flex-col h-auto py-2 gap-0.5 ${selectedVibes.some(v => v.value === vibe.value) ? 'btn-primary' : 'btn-ghost border border-base-300'}`}>
                     <span className="text-lg">{vibe.emoji}</span>
                     <span className="text-xs font-medium">{vibe.label}</span>
                   </button>

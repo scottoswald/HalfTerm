@@ -308,7 +308,11 @@ def run_venues_search(
     free_text_str = f"\nUser also searched for: \"{free_text}\"" if free_text and free_text.strip() else ""
 
     if latitude is not None and longitude is not None:
-        radius_str = f"\nPrefer results within {radius_miles} miles of ({latitude:.4f}, {longitude:.4f}). If extending, set search_extended=true with a friendly message."
+        radius_str = f"""
+  RADIUS: User is at ({latitude:.4f}, {longitude:.4f}) and requested results within {radius_miles} miles.
+  - ONLY set search_extended=true if you are including results MORE than {radius_miles} miles away
+  - If ALL results are within {radius_miles} miles, set search_extended=false and search_extended_message=null
+  - Do NOT set search_extended=true just because fewer results were found than expected"""
     else:
         radius_str = ""
 
@@ -323,11 +327,12 @@ STRICT RULES:
 1. VENUE = permanent place families visit year-round: museum, park, zoo, aquarium, gallery, theatre building, science centre, soft play, theme park. Even ticketed permanent attractions (London Eye, Madame Tussauds, Sea Life) are VENUES not events.
 2. Only include venues genuinely matching: {activities_str}
 3. Only use results from the data above — never add from your own knowledge
-4. Return max 5 venues
+4. Return max 8 venues
 5. cost: NEVER use null — use "Free", "From £X", or "Paid — check website"
 6. directions_url: https://www.google.com/maps/dir/?api=1&destination=ADDRESS_URL_ENCODED
 7. Keywords only from: {keywords_list}
 8. image_url: always set to null (photos are added separately)
+9. opening_times: use Opening hours from the Google Places data. Only use 'Check website for hours' if no opening hours were provided.
 
 Return ONLY valid JSON:
 {{
@@ -424,7 +429,11 @@ def run_events_search(
     free_text_str = f"\nUser also searched for: \"{free_text}\"" if free_text and free_text.strip() else ""
 
     if latitude is not None and longitude is not None:
-        radius_str = f"\nPrefer results within {radius_miles} miles of ({latitude:.4f}, {longitude:.4f}). If extending, set search_extended=true with a friendly message."
+        radius_str = f"""
+  RADIUS: User is at ({latitude:.4f}, {longitude:.4f}) and requested results within {radius_miles} miles.
+  - ONLY set search_extended=true if you are including results MORE than {radius_miles} miles away
+  - If ALL results are within {radius_miles} miles, set search_extended=false and search_extended_message=null
+  - Do NOT set search_extended=true just because fewer results were found than expected"""
     else:
         radius_str = ""
 
@@ -443,7 +452,7 @@ STRICT RULES:
 2. Do NOT include permanent attractions (London Eye, Madame Tussauds, museums) — those are venues.
 3. Only include events genuinely matching: {activities_str}
 4. Only use results from the data above — never add from your own knowledge
-5. Return max 5 events
+5. Return max 8 events
 6. cost: NEVER use null — use "Free", "From £X", or "Paid — check website"
 7. directions_url: https://www.google.com/maps/dir/?api=1&destination=ADDRESS_URL_ENCODED
 8. Keywords only from: {keywords_list}

@@ -74,7 +74,7 @@ describe('App component', () => {
     render(<MemoryRouter><App /></MemoryRouter>)
     const accessibleButton = screen.getByText('Accessible').closest('button')!
     fireEvent.click(accessibleButton)
-    expect(accessibleButton).toHaveClass('btn-secondary')
+    expect(accessibleButton).toHaveClass('btn-primary')
   })
 
   it('renders radius selector buttons', () => {

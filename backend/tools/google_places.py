@@ -7,7 +7,6 @@ from typing import Optional
 logger = logging.getLogger(__name__)
 
 # Fallback coordinates for UK cities
-# Used when no GPS or postcode coordinates are provided
 UK_CITY_COORDINATES = {
     "London":     {"latitude": 51.5074, "longitude": -0.1278},
     "Manchester": {"latitude": 53.4808, "longitude": -2.2426},
@@ -25,6 +24,22 @@ UK_CITY_COORDINATES = {
     "Bath":       {"latitude": 51.3811, "longitude": -2.3590},
 }
 
+def format_opening_hours(hours_data: dict) -> str:
+    """
+    Format Google Places regularOpeningHours into a readable string.
+    Falls back to 'Check website for hours' if data is unavailable.
+    """
+    if not hours_data:
+        return "Check website for hours"
+
+    weekday_descriptions = hours_data.get("weekdayDescriptions", [])
+    if weekday_descriptions:
+        # Return the first two days as a summary e.g. "Mon-Fri: 10am-5pm"
+        return " | ".join(weekday_descriptions[:2])
+
+    return "Check website for hours"
+
+
 def search_google_places_with_photos(
     query: str,
     location: str,
@@ -39,6 +54,7 @@ def search_google_places_with_photos(
     This is the primary production function used by agent.py.
     Photo URLs are extracted here in Python so Claude doesn't generate them —
     this saves ~400 output tokens per search and speeds up Claude significantly.
+    Opening hours are also extracted here and passed as structured text.
 
     Returns: (text_for_claude, photo_urls_by_name)
     """
@@ -57,7 +73,8 @@ def search_google_places_with_photos(
             headers={
                 "Content-Type": "application/json",
                 "X-Goog-Api-Key": api_key,
-                "X-Goog-FieldMask": "places.displayName,places.formattedAddress,places.rating,places.websiteUri,places.photos",
+                # Added regularOpeningHours to get actual opening times
+                "X-Goog-FieldMask": "places.displayName,places.formattedAddress,places.rating,places.websiteUri,places.photos,places.regularOpeningHours",
             },
             json={
                 "textQuery": f"{query} {location}",
@@ -85,7 +102,12 @@ def search_google_places_with_photos(
             rating = place.get("rating", "No rating")
             website = place.get("websiteUri", "No website")
 
-            # Extract photo URL in Python — not passed to Claude to save output tokens
+            # Extract opening hours — structured data, not "Check website"
+            opening_hours = format_opening_hours(
+                place.get("regularOpeningHours", {})
+            )
+
+            # Extract photo URL in Python — not passed to Claude to save tokens
             photos = place.get("photos", [])
             if photos:
                 photo_name = photos[0].get("name", "")
@@ -93,7 +115,11 @@ def search_google_places_with_photos(
                     photo_urls[name] = f"https://places.googleapis.com/v1/{photo_name}/media?maxWidthPx=800&key={api_key}"
 
             results.append(
-                f"- {name}\n  Address: {address}\n  Rating: {rating}/5\n  Website: {website}"
+                f"- {name}\n"
+                f"  Address: {address}\n"
+                f"  Rating: {rating}/5\n"
+                f"  Website: {website}\n"
+                f"  Opening hours: {opening_hours}"
             )
 
         return "\n\n".join(results), photo_urls
@@ -109,8 +135,7 @@ def search_google_places_with_photos(
         return "Something went wrong searching for venues.", {}
 
 
-# Keep old name as alias for backward compatibility
-# TODO: remove in v3.5.0 once all callers use the new name
+# Alias for backward compatibility
 search_google_places_raw = search_google_places_with_photos
 
 
@@ -125,17 +150,11 @@ def search_google_places(
     """
     Search for family friendly venues, museums, parks and attractions in a UK location
     using the Google Places API.
-    Returns venue details including address, rating and website.
-    Use this tool to find permanent venues and attractions — museums, parks,
-    science centres, zoos, theatres and similar places families can visit.
-    Accepts optional coordinates for more accurate radius-based searching.
-
-    Note: This @tool version is kept for compatibility. In production, agent.py
-    calls search_google_places_with_photos directly to get photo URLs separately.
+    Returns venue details including address, rating, website, opening hours and photo URL.
+    Note: In production, agent.py calls search_google_places_with_photos directly.
     """
     text, photo_urls = search_google_places_with_photos(query, location, latitude, longitude, radius_miles)
 
-    # Include photo URLs in the text output for the tool version
     if photo_urls:
         lines = text.split("\n\n")
         enhanced = []
@@ -147,3 +166,4 @@ def search_google_places(
         return "\n\n".join(enhanced)
 
     return text
+
