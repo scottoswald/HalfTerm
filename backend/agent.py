@@ -3,6 +3,7 @@ from langchain_anthropic import ChatAnthropic
 from tools.ticketmaster import search_ticketmaster_events
 from tools.google_places import search_google_places_with_photos
 from tools.eventbrite import search_eventbrite_events
+from tools.skiddle import search_skiddle_events
 from typing import Optional
 from concurrent.futures import ThreadPoolExecutor
 import os
@@ -24,19 +25,12 @@ llm = ChatAnthropic(
 keywords_list = "sibling friendly, dog friendly, accessible, parking nearby, café on site, book in advance, free cancellation, outdoor, indoor, rainy day, sunny day, drop in, booking required, gift shop, picnic area, photography allowed"
 
 # ---- PER-CATEGORY SEARCH STRATEGY ----
-# Each category has:
-# - use_google_places: whether to search Google Places for venues
-# - use_ticketmaster: whether to search Ticketmaster for events
-# - use_eventbrite: whether to search Eventbrite for events
-# - google_query: tailored query for Google Places (more specific than raw category)
-# - eventbrite_query: tailored query for Eventbrite
-# - ticketmaster_category: passed to Ticketmaster for classification-based filtering
-
 CATEGORY_STRATEGY = {
     "Museums": {
         "use_google_places": True,
         "use_ticketmaster": True,
         "use_eventbrite": True,
+        "use_skiddle": False,
         "google_query": "family museums galleries heritage children",
         "eventbrite_query": "museum family children",
         "ticketmaster_category": None,
@@ -45,6 +39,7 @@ CATEGORY_STRATEGY = {
         "use_google_places": True,
         "use_ticketmaster": True,
         "use_eventbrite": True,
+        "use_skiddle": False,
         "google_query": "family attractions theme parks visitor centres rides",
         "eventbrite_query": "family attractions children",
         "ticketmaster_category": None,
@@ -53,7 +48,7 @@ CATEGORY_STRATEGY = {
         "use_google_places": True,
         "use_ticketmaster": True,
         "use_eventbrite": True,
-        # Specific query prevents returning outdoor equipment shops
+        "use_skiddle": True,
         "google_query": "parks nature reserves gardens family outdoor walks picnic",
         "eventbrite_query": "outdoor family nature walk children",
         "ticketmaster_category": None,
@@ -62,16 +57,16 @@ CATEGORY_STRATEGY = {
         "use_google_places": True,
         "use_ticketmaster": True,
         "use_eventbrite": True,
+        "use_skiddle": False,
         "google_query": "sports centres leisure centres stadiums family activities",
         "eventbrite_query": "sports family children activities",
         "ticketmaster_category": "Sports",
     },
     "Theatre and Shows": {
-        # Skip Google Places — returns theatre buildings not shows
-        # Use Arts & Theatre classification on Ticketmaster for actual productions
         "use_google_places": False,
         "use_ticketmaster": True,
         "use_eventbrite": True,
+        "use_skiddle": True,
         "google_query": "",
         "eventbrite_query": "theatre show performance family children",
         "ticketmaster_category": "Theatre and Shows",
@@ -80,6 +75,7 @@ CATEGORY_STRATEGY = {
         "use_google_places": True,
         "use_ticketmaster": True,
         "use_eventbrite": True,
+        "use_skiddle": True,
         "google_query": "arts crafts studios pottery painting family workshops children",
         "eventbrite_query": "arts crafts workshop family children",
         "ticketmaster_category": None,
@@ -88,6 +84,7 @@ CATEGORY_STRATEGY = {
         "use_google_places": True,
         "use_ticketmaster": True,
         "use_eventbrite": True,
+        "use_skiddle": False,
         "google_query": "science centres technology museums discovery family children",
         "eventbrite_query": "science technology workshop family children",
         "ticketmaster_category": None,
@@ -96,6 +93,7 @@ CATEGORY_STRATEGY = {
         "use_google_places": True,
         "use_ticketmaster": True,
         "use_eventbrite": True,
+        "use_skiddle": False,
         "google_query": "zoos farms aquariums wildlife parks family animals children",
         "eventbrite_query": "animals wildlife family children",
         "ticketmaster_category": None,
@@ -104,6 +102,7 @@ CATEGORY_STRATEGY = {
         "use_google_places": True,
         "use_ticketmaster": True,
         "use_eventbrite": True,
+        "use_skiddle": False,
         "google_query": "soft play playgrounds indoor play centres trampolines family children",
         "eventbrite_query": "play family children activities",
         "ticketmaster_category": None,
@@ -112,15 +111,16 @@ CATEGORY_STRATEGY = {
         "use_google_places": True,
         "use_ticketmaster": True,
         "use_eventbrite": True,
+        "use_skiddle": False,
         "google_query": "go karting climbing walls escape rooms laser tag family",
         "eventbrite_query": "adventure challenge family children",
         "ticketmaster_category": None,
     },
     "Fairs and Festivals": {
-        # Skip Google Places — fairs and festivals are events not permanent venues
         "use_google_places": False,
         "use_ticketmaster": True,
         "use_eventbrite": True,
+        "use_skiddle": True,
         "google_query": "",
         "eventbrite_query": "fair festival family children",
         "ticketmaster_category": "Fairs and Festivals",
@@ -129,15 +129,16 @@ CATEGORY_STRATEGY = {
         "use_google_places": True,
         "use_ticketmaster": True,
         "use_eventbrite": True,
+        "use_skiddle": False,
         "google_query": "swimming pools lidos water parks family children",
         "eventbrite_query": "swimming family children",
         "ticketmaster_category": None,
     },
     "Music": {
-        # Skip Google Places — returns concert halls not actual concerts
         "use_google_places": False,
         "use_ticketmaster": True,
         "use_eventbrite": True,
+        "use_skiddle": True,
         "google_query": "",
         "eventbrite_query": "music concert family children",
         "ticketmaster_category": "Music",
@@ -146,6 +147,7 @@ CATEGORY_STRATEGY = {
         "use_google_places": True,
         "use_ticketmaster": True,
         "use_eventbrite": True,
+        "use_skiddle": False,
         "google_query": "arcades VR gaming centres board game cafes family entertainment",
         "eventbrite_query": "gaming family children",
         "ticketmaster_category": None,
@@ -154,16 +156,16 @@ CATEGORY_STRATEGY = {
         "use_google_places": True,
         "use_ticketmaster": True,
         "use_eventbrite": True,
+        "use_skiddle": True,
         "google_query": "discovery centres educational museums learning family children",
         "eventbrite_query": "learning workshop educational family children",
         "ticketmaster_category": None,
     },
     "Community": {
-        # Skip Google Places and Ticketmaster — community events are hyper-local
-        # Eventbrite is the best source for grassroots community events
         "use_google_places": False,
         "use_ticketmaster": False,
         "use_eventbrite": True,
+        "use_skiddle": True,
         "google_query": "",
         "eventbrite_query": "community family children activities local",
         "ticketmaster_category": None,
@@ -171,15 +173,12 @@ CATEGORY_STRATEGY = {
 }
 
 def get_strategy(activities: list[str]) -> dict:
-    """
-    Get the combined search strategy for a list of activities.
-    If multiple activities are selected, we union the strategies.
-    """
     if not activities:
         return {
             "use_google_places": True,
             "use_ticketmaster": True,
             "use_eventbrite": True,
+            "use_skiddle": True,
             "google_query": "family activities children",
             "eventbrite_query": "family activities children",
             "ticketmaster_category": None,
@@ -188,6 +187,7 @@ def get_strategy(activities: list[str]) -> dict:
     use_google = False
     use_ticketmaster = False
     use_eventbrite = False
+    use_skiddle = False
     google_queries = []
     eventbrite_queries = []
     ticketmaster_category = None
@@ -207,10 +207,13 @@ def get_strategy(activities: list[str]) -> dict:
                 use_eventbrite = True
                 if strategy["eventbrite_query"]:
                     eventbrite_queries.append(strategy["eventbrite_query"])
+            if strategy["use_skiddle"]:
+                use_skiddle = True
         else:
             use_google = True
             use_ticketmaster = True
             use_eventbrite = True
+            use_skiddle = True
             google_queries.append(f"{activity} family children")
             eventbrite_queries.append(f"{activity} family children")
 
@@ -218,6 +221,7 @@ def get_strategy(activities: list[str]) -> dict:
         "use_google_places": use_google,
         "use_ticketmaster": use_ticketmaster,
         "use_eventbrite": use_eventbrite,
+        "use_skiddle": use_skiddle,
         "google_query": google_queries[0] if google_queries else "family activities children",
         "eventbrite_query": eventbrite_queries[0] if eventbrite_queries else "family activities children",
         "ticketmaster_category": ticketmaster_category,
@@ -225,7 +229,6 @@ def get_strategy(activities: list[str]) -> dict:
 
 
 def parse_response(response_text: str, activities_str: str, location: str) -> dict:
-    """Parse Claude's JSON response, stripping any markdown fences."""
     try:
         cleaned = response_text.strip()
         if cleaned.startswith("```"):
@@ -246,11 +249,6 @@ def parse_response(response_text: str, activities_str: str, location: str) -> di
 
 
 def inject_venue_photos(venues: list, photo_urls: dict[str, str]) -> list:
-    """
-    Inject photo URLs into venue results after Claude has formatted them.
-    Claude sets image_url to null — we match by venue name and inject here.
-    This saves ~400 output tokens per search, speeding up Claude significantly.
-    """
     for venue in venues:
         name = venue.get("name", "")
         if name in photo_urls:
@@ -348,7 +346,7 @@ Return ONLY valid JSON:
       "location": "full address",
       "latitude": 51.5074,
       "longitude": -0.1278,
-      "opening_times": "Daily 10:00 AM - 5:00 PM",
+      "opening_times": "use Opening hours from data or Check website for hours",
       "age_range": "All ages",
       "cost": "Free",
       "is_free": true,
@@ -372,6 +370,7 @@ Return ONLY valid JSON:
 
 
 # ---- EVENTS SEARCH ----
+# Now calls Ticketmaster, Eventbrite AND Skiddle in parallel
 def run_events_search(
     activities: list[str],
     location: str,
@@ -406,7 +405,6 @@ def run_events_search(
         if not strategy["use_eventbrite"]:
             return "Eventbrite not used for this category."
         try:
-            # Use tailored eventbrite query for better results
             eventbrite_query = strategy.get("eventbrite_query", activities_str)
             return search_eventbrite_events.invoke({
                 "location": location,
@@ -419,11 +417,30 @@ def run_events_search(
         except Exception as e:
             return f"Eventbrite failed: {str(e)}"
 
-    with ThreadPoolExecutor(max_workers=2) as executor:
+    def call_skiddle():
+        if not strategy["use_skiddle"]:
+            return "Skiddle not used for this category."
+        try:
+            return search_skiddle_events.invoke({
+                "query": activities_str,
+                "location": location,
+                "date": date,
+                "latitude": latitude,
+                "longitude": longitude,
+                "radius_miles": radius_miles,
+                "category": activities[0] if activities else None
+            })
+        except Exception as e:
+            return f"Skiddle failed: {str(e)}"
+
+    # Run all three in parallel
+    with ThreadPoolExecutor(max_workers=3) as executor:
         future_tm = executor.submit(call_ticketmaster)
         future_eb = executor.submit(call_eventbrite)
+        future_sk = executor.submit(call_skiddle)
         ticketmaster_data = future_tm.result()
         eventbrite_data = future_eb.result()
+        skiddle_data = future_sk.result()
 
     vibes_str = f"\nPrioritise results that are: {', '.join(vibes)}" if vibes else ""
     free_text_str = f"\nUser also searched for: \"{free_text}\"" if free_text and free_text.strip() else ""
@@ -447,18 +464,21 @@ TICKETMASTER DATA:
 EVENTBRITE DATA:
 {eventbrite_data}
 
+SKIDDLE DATA:
+{skiddle_data}
+
 STRICT RULES:
 1. EVENT = time-specific and temporary: workshop, show, performance, class, community day. Has a specific date/time.
 2. Do NOT include permanent attractions (London Eye, Madame Tussauds, museums) — those are venues.
 3. Only include events genuinely matching: {activities_str}
-4. Only use results from the data above — never add from your own knowledge
+4. Only use results from the API data above — never add from your own knowledge
 5. Return max 8 events
 6. cost: NEVER use null — use "Free", "From £X", or "Paid — check website"
 7. directions_url: https://www.google.com/maps/dir/?api=1&destination=ADDRESS_URL_ENCODED
 8. Keywords only from: {keywords_list}
-9. image_url: use the Photo URL from Ticketmaster/Eventbrite data if present, otherwise null
+9. image_url: use the Photo URL from the data if present, otherwise null
 10. If the same show appears multiple times on different dates, only include it ONCE — pick the earliest upcoming date.
-11. Only include events genuinely suitable for families with children. Reject adult comedy, adult concerts, and events with no family relevance even if Ticketmaster returns them.
+11. Only include events genuinely suitable for families with children. Reject adult comedy, adult concerts, and events with no family relevance.
 
 Return ONLY valid JSON:
 {{
