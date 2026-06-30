@@ -25,6 +25,8 @@ llm = ChatAnthropic(
 keywords_list = "sibling friendly, dog friendly, accessible, parking nearby, café on site, book in advance, free cancellation, outdoor, indoor, rainy day, sunny day, drop in, booking required, gift shop, picnic area, photography allowed"
 
 # ---- PER-CATEGORY SEARCH STRATEGY ----
+# Queries are intentionally generic — no city names hardcoded.
+# The location is passed separately as a parameter to each API.
 CATEGORY_STRATEGY = {
     "Museums": {
         "use_google_places": True,
@@ -49,7 +51,8 @@ CATEGORY_STRATEGY = {
         "use_ticketmaster": True,
         "use_eventbrite": True,
         "use_skiddle": True,
-        "google_query": "parks nature reserves gardens family outdoor walks picnic",
+        # Added "gardens" and "children" — surfaces bigger parks alongside nature reserves
+        "google_query": "parks gardens nature reserves family outdoor walks children",
         "eventbrite_query": "outdoor family nature walk children",
         "ticketmaster_category": None,
     },
@@ -63,11 +66,12 @@ CATEGORY_STRATEGY = {
         "ticketmaster_category": "Sports",
     },
     "Theatre and Shows": {
-        "use_google_places": False,
+        # Google Places now enabled — search for children's theatres specifically
+        "use_google_places": True,
         "use_ticketmaster": True,
         "use_eventbrite": True,
         "use_skiddle": True,
-        "google_query": "",
+        "google_query": "children's theatre family theatre kids shows performances",
         "eventbrite_query": "theatre show performance family children",
         "ticketmaster_category": "Theatre and Shows",
     },
@@ -85,7 +89,8 @@ CATEGORY_STRATEGY = {
         "use_ticketmaster": True,
         "use_eventbrite": True,
         "use_skiddle": False,
-        "google_query": "science centres technology museums discovery family children",
+        # Tightened to reduce overlap with Museums and Learning
+        "google_query": "science centres planetarium interactive technology coding robotics family children",
         "eventbrite_query": "science technology workshop family children",
         "ticketmaster_category": None,
     },
@@ -117,36 +122,41 @@ CATEGORY_STRATEGY = {
         "ticketmaster_category": None,
     },
     "Fairs and Festivals": {
+        # Ticketmaster disabled — returns adult music festivals not family fairs
+        # Skiddle and Eventbrite better for this category
         "use_google_places": False,
-        "use_ticketmaster": True,
+        "use_ticketmaster": False,
         "use_eventbrite": True,
         "use_skiddle": True,
         "google_query": "",
-        "eventbrite_query": "fair festival family children",
-        "ticketmaster_category": "Fairs and Festivals",
+        "eventbrite_query": "family fair festival summer fete children",
+        "ticketmaster_category": None,
     },
     "Swimming": {
         "use_google_places": True,
-        "use_ticketmaster": True,
-        "use_eventbrite": True,
+        "use_ticketmaster": False,
+        "use_eventbrite": False,
         "use_skiddle": False,
-        "google_query": "swimming pools lidos water parks family children",
+        # Balanced indoor/outdoor — previously only returning lidos
+        "google_query": "swimming pools indoor pools leisure centres lidos water parks family children",
         "eventbrite_query": "swimming family children",
         "ticketmaster_category": None,
     },
     "Music": {
+        # Ticketmaster returns adult concerts — disabled until better filtering available
+        # Skiddle LIVE code also returns adult gigs
         "use_google_places": False,
-        "use_ticketmaster": True,
+        "use_ticketmaster": False,
         "use_eventbrite": True,
         "use_skiddle": True,
         "google_query": "",
-        "eventbrite_query": "music concert family children",
-        "ticketmaster_category": "Music",
+        "eventbrite_query": "children's music concert singalong family music workshop",
+        "ticketmaster_category": None,
     },
     "Gaming": {
         "use_google_places": True,
-        "use_ticketmaster": True,
-        "use_eventbrite": True,
+        "use_ticketmaster": False,
+        "use_eventbrite": False,
         "use_skiddle": False,
         "google_query": "arcades VR gaming centres board game cafes family entertainment",
         "eventbrite_query": "gaming family children",
@@ -157,7 +167,8 @@ CATEGORY_STRATEGY = {
         "use_ticketmaster": True,
         "use_eventbrite": True,
         "use_skiddle": True,
-        "google_query": "discovery centres educational museums learning family children",
+        # Tightened to reduce overlap with Museums
+        "google_query": "discovery centres educational workshops learning family children",
         "eventbrite_query": "learning workshop educational family children",
         "ticketmaster_category": None,
     },
@@ -229,6 +240,7 @@ def get_strategy(activities: list[str]) -> dict:
 
 
 def parse_response(response_text: str, activities_str: str, location: str) -> dict:
+    """Parse Claude's JSON response, stripping any markdown fences."""
     try:
         cleaned = response_text.strip()
         if cleaned.startswith("```"):
@@ -249,6 +261,11 @@ def parse_response(response_text: str, activities_str: str, location: str) -> di
 
 
 def inject_venue_photos(venues: list, photo_urls: dict[str, str]) -> list:
+    """
+    Inject photo URLs into venue results after Claude has formatted them.
+    Claude sets image_url to null — we match by venue name and inject here.
+    This saves ~400 output tokens per search, speeding up Claude significantly.
+    """
     for venue in venues:
         name = venue.get("name", "")
         if name in photo_urls:
@@ -322,7 +339,7 @@ GOOGLE PLACES DATA:
 {google_data}
 
 STRICT RULES:
-1. VENUE = permanent place families visit year-round: museum, park, zoo, aquarium, gallery, theatre building, science centre, soft play, theme park. Even ticketed permanent attractions (London Eye, Madame Tussauds, Sea Life) are VENUES not events.
+1. VENUE = permanent place families visit year-round: museum, park, zoo, aquarium, gallery, theatre building, science centre, soft play, theme park. Even ticketed permanent attractions are VENUES not events.
 2. Only include venues genuinely matching: {activities_str}
 3. Only use results from the data above — never add from your own knowledge
 4. Return max 8 venues
@@ -370,7 +387,7 @@ Return ONLY valid JSON:
 
 
 # ---- EVENTS SEARCH ----
-# Now calls Ticketmaster, Eventbrite AND Skiddle in parallel
+# Calls Ticketmaster, Eventbrite and Skiddle based on category strategy
 def run_events_search(
     activities: list[str],
     location: str,
@@ -428,12 +445,11 @@ def run_events_search(
                 "latitude": latitude,
                 "longitude": longitude,
                 "radius_miles": radius_miles,
-                "category": activities[0] if activities else None
+                "category": activities[0] if activities else None,
             })
         except Exception as e:
             return f"Skiddle failed: {str(e)}"
 
-    # Run all three in parallel
     with ThreadPoolExecutor(max_workers=3) as executor:
         future_tm = executor.submit(call_ticketmaster)
         future_eb = executor.submit(call_eventbrite)
@@ -469,7 +485,7 @@ SKIDDLE DATA:
 
 STRICT RULES:
 1. EVENT = time-specific and temporary: workshop, show, performance, class, community day. Has a specific date/time.
-2. Do NOT include permanent attractions (London Eye, Madame Tussauds, museums) — those are venues.
+2. Do NOT include permanent attractions — those are venues not events.
 3. Only include events genuinely matching: {activities_str}
 4. Only use results from the API data above — never add from your own knowledge
 5. Return max 8 events
@@ -478,7 +494,11 @@ STRICT RULES:
 8. Keywords only from: {keywords_list}
 9. image_url: use the Photo URL from the data if present, otherwise null
 10. If the same show appears multiple times on different dates, only include it ONCE — pick the earliest upcoming date.
-11. Only include events genuinely suitable for families with children. Reject adult comedy, adult concerts, and events with no family relevance.
+11. Only include events genuinely suitable for families with children.
+    - Music: ONLY include children's concerts, singalong shows, family music events. REJECT adult gigs, rock concerts, club nights.
+    - Fairs and Festivals: ONLY include family fairs, summer fetes, children's festivals. REJECT adult music festivals.
+    - Theatre: Prioritise shows specifically marketed for children. West End shows acceptable if family-friendly.
+    - All categories: reject adult comedy, adult nightlife, events clearly aimed at adults only.
 
 Return ONLY valid JSON:
 {{

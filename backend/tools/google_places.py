@@ -96,7 +96,7 @@ def search_google_places_with_photos(
         results = []
         photo_urls: dict[str, str] = {}
 
-        for place in data["places"][:5]:
+        for place in data["places"][:8]:
             name = place.get("displayName", {}).get("text", "Unknown")
             address = place.get("formattedAddress", "No address")
             rating = place.get("rating", "No rating")
