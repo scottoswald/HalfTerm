@@ -3,6 +3,36 @@
 All notable changes to Halfterm will be documented in this file.
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [3.5.0] - 2026-07-20
+
+### Added
+- Skiddle API integration for grassroots UK family events
+- Per-category search strategy audit and refinement (all 16 categories)
+- About page with project description, tech stack and links to GitHub and LinkedIn
+- Contact page with email form powered by Resend
+- About and Contact buttons on search and results pages
+- Feedback form button on About page
+- Opening times from Google Places regularOpeningHours field
+
+### Changed
+- Vibe buttons now use btn-primary (orange) for better selected state contrast
+- "Update search" renamed to "New search"
+- Results scroll to top on load
+- Google Places now returns up to 8 results (was 5)
+- Fairs & Festivals: Ticketmaster disabled (was returning adult music festivals)
+- Music: Ticketmaster disabled (was returning adult concerts)  
+- Theatre & Shows: Google Places now enabled to surface children's theatres
+- Swimming: query balanced for indoor and outdoor pools
+- Outdoors: query updated to surface parks and gardens alongside nature reserves
+- Science & Tech: query tightened to reduce overlap with Museums
+- Tighter family filtering in events prompt
+- Radius false positive bug fixed
+- Mobile layout improvements (2-col activity grid, radius buttons, Ages label)
+
+### Fixed
+- Contact email kept private via environment variable (not hardcoded)
+- Google Places cap increased to 8 results
+
 ## [3.4.0] - 2026-05-28
 
 ### Added
