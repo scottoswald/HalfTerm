@@ -1,149 +1,150 @@
 # Halfterm
 
-A website for families to find things to do with their kids during school holidays.
+**Find things to do with your kids.**
 
-## What it does
+Halfterm is a family activities finder for UK parents. Search by activity type, location, date, age range and budget — and get relevant, local results powered by multiple APIs and Claude AI.
 
-Search for kids activities by type, location, date, age range and budget. An AI agent
-searches live data from Ticketmaster, Google Places and Eventbrite, and returns relevant
-results tailored to your search.
+🔗 **Live app:** [halfterm.up.railway.app](https://halfterm.up.railway.app)
 
-> **Current scope:** UK cities only. Supports 8 activity types, 14 cities,
-> date ranges from today through next week, age ranges from 0-3 to teenagers,
-> and budget filters from free to £50+.
+---
+
+## Screenshots
+
+![Search page](screenshots/search.png)
+![Results page](screenshots/results.png)
+
+---
+
+## Features
+
+- 🏛️ **16 activity categories** — Museums, Outdoors, Theatre & Shows, Animals, Arts & Crafts and more
+- 📍 **Location search** — GPS, postcode or city, with radius filtering and distance badges
+- 🗺️ **Map view** — interactive Leaflet map with venue and event pins
+- 🎨 **Real images** — venue photos from Google Places, event images from Ticketmaster and Skiddle
+- ⚡ **Two-stage loading** — venues appear in ~5 seconds, events follow
+- 🎭 **Experience filters** — "What kind of experience?" vibes (Free & Low Cost, Accessible, Hidden Gem etc)
+- 📱 **Mobile responsive** — works on phone and desktop
+
+---
 
 ## Tech Stack
 
-**Frontend**
+### Frontend
 - React + TypeScript (Vite)
-- Tailwind CSS v3 + DaisyUI v4
+- Tailwind CSS + DaisyUI
+- Leaflet (map view)
 - React Router
-- React Markdown + remark-gfm
 
-**Backend**
+### Backend
 - Python + FastAPI
-- Uvicorn
-- pytz (UK timezone handling)
+- Claude AI — Haiku model via Anthropic API
+- LangChain
 
-**AI Layer**
-- LangChain + LangGraph
-- Claude API (Anthropic) — claude-opus-4-5
+### APIs & Data Sources
+- Google Places API — venues, opening times, photos
+- Ticketmaster API — ticketed events
+- Eventbrite API — community events and workshops
+- Skiddle API — grassroots UK family events
+- Postcodes.io — postcode to coordinates lookup
 
-**Live Data**
-- Ticketmaster API — live family events with date filtering
-- Google Places API — venue information with ratings and addresses
-- Eventbrite API — community events, workshops and classes
+### Infrastructure
+- Railway (hosting)
+- Docker + Docker Compose
+- GitHub Actions (CI/CD)
+- Resend (contact form email)
 
-**Testing**
-- Vitest (frontend) — 12 tests
-- Pytest (backend) — 8 tests
+---
 
-**Infrastructure**
-- Docker + Docker Compose (local containerisation)
-- nginx reverse proxy
-- GitHub Actions CI/CD pipeline
-- Railway (production deployment)
-- AWS ECS + Fargate (portfolio deployment)
-- AWS ECR (container registry)
+## Architecture
 
-## Project Structure
-HalfTerm/
-├── .github/
-│   └── workflows/
-│       └── ci.yml              # GitHub Actions CI/CD pipeline
-├── frontend/
-│   ├── src/
-│   │   ├── App.tsx             # Homepage with search form
-│   │   ├── Results.tsx         # Results page
-│   │   ├── App.css             # Global styles
-│   │   └── test/
-│   │       ├── App.test.tsx
-│   │       └── Results.test.tsx
-│   ├── Dockerfile.local        # Frontend Docker image (local use)
-│   ├── nginx.conf              # nginx config with reverse proxy
-│   ├── railway.json            # Railway deployment config
-│   └── tailwind.config.js      # Tailwind + DaisyUI config
-├── backend/
-│   ├── tools/
-│   │   ├── init.py
-│   │   ├── ticketmaster.py     # Ticketmaster API tool
-│   │   ├── google_places.py    # Google Places API tool
-│   │   └── eventbrite.py       # Eventbrite API tool
-│   ├── tests/
-│   │   └── test_main.py
-│   ├── main.py                 # FastAPI routes + date resolution
-│   ├── agent.py                # LangChain AI agent
-│   ├── Dockerfile              # Backend Docker image
-│   └── requirements.txt
-├── docker-compose.yml          # Run entire app with one command
-├── CHANGELOG.md
-└── README.md
+Halfterm uses a **two-stage search** pattern for fast results:
 
-## Getting Started
+1. User submits search → results page loads immediately with skeleton cards
+2. `/search/venues` calls Google Places → venues appear (~5-8 seconds)
+3. `/search/events` calls Ticketmaster, Eventbrite and Skiddle in parallel → events appear (~15-25 seconds)
+4. Claude AI (Haiku) filters and formats results into structured JSON
+5. Photo URLs are injected in Python after Claude responds (saves ~400 output tokens per search)
+
+Each of the 16 categories has its own tailored search strategy — different API sources, queries and filtering rules.
+
+---
+
+## Running Locally
 
 ### Prerequisites
+- Node.js 18+
+- Python 3.11+
+- API keys for: Anthropic, Google Places, Ticketmaster, Eventbrite, Skiddle, Resend
 
-You will need API keys for:
-- [Anthropic](https://console.anthropic.com) — Claude AI
-- [Ticketmaster](https://developer.ticketmaster.com) — live events
-- [Google Places](https://console.cloud.google.com) — venue information
-- [Eventbrite](https://www.eventbrite.com/account-settings/apps) — community events
+### Setup
 
-Create a `.env` file in the `backend` folder:
-ANTHROPIC_API_KEY=your-key-here
-TICKETMASTER_API_KEY=your-key-here
-GOOGLE_PLACES_API_KEY=your-key-here
-EVENTBRITE_API_KEY=your-key-here
+**Clone the repo:**
+```bash
+git clone https://github.com/scottoswald/HalfTerm.git
+cd HalfTerm
+```
 
-### Option 1 — Local Development (recommended for day to day work)
-
-**Backend**
+**Backend:**
+```bash
 cd backend
-python3 -m venv venv
+python -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
+cp .env.example .env  # Add your API keys
 uvicorn main:app --reload
+```
 
-**Frontend**
+**Frontend:**
+```bash
 cd frontend
 npm install
 npm run dev
+```
 
-Visit `http://localhost:5173`
+The frontend runs on `http://localhost:5173` and the backend on `http://localhost:8000`.
 
-### Option 2 — Docker (recommended for testing production build)
-docker-compose up --build
+### Environment Variables
 
-Visit `http://localhost:3000`
+Create `backend/.env` with:
 
-### Running Tests
+```
+ANTHROPIC_API_KEY=
+GOOGLE_PLACES_API_KEY_BACKEND=
+TICKETMASTER_API_KEY=
+EVENTBRITE_API_KEY=
+SKIDDLE_API_KEY=
+RESEND_API_KEY=
+CONTACT_EMAIL=
+```
 
-**Backend**
-cd backend
-source venv/bin/activate
-python -m pytest tests/ -v
+---
 
-**Frontend**
-cd frontend
-npx vitest run
+## Testing
 
-### API Documentation
+```bash
+# Frontend
+cd frontend && npx vitest run
 
-Visit `http://localhost:8000/docs` to explore the backend API via Swagger UI.
+# Backend
+cd backend && source venv/bin/activate && python -m pytest tests/ -v
+```
 
-## Deployment
+24 frontend tests · 29 backend tests
 
-| Environment | Frontend | Backend |
-|-------------|----------|---------|
-| Local Vite | http://localhost:5173 | http://localhost:8000 |
-| Local Docker | http://localhost:3000 | http://localhost:8000 |
-| Railway (production) | https://halfterm.up.railway.app | https://halfterm-production.up.railway.app |
-| AWS ECS (portfolio) | http://16.60.112.240 | http://16.60.157.219:8000 |
+---
 
-> Note: AWS IP addresses may change if containers restart. Railway is the stable production URL.
+## Project Status
 
-## Status
+Actively in development. Currently on **v3.5.0**.
 
-v3.1.0 complete. See [CHANGELOG.md](CHANGELOG.md) for full version history.
+See [CHANGELOG.md](CHANGELOG.md) for full version history.
 
-**Live URL:** https://halfterm.up.railway.app
+---
+
+## About
+
+Built by **Scott Oswald** as a portfolio project during a career transition into software development.
+
+- 🌐 [halfterm.up.railway.app](https://halfterm.up.railway.app)
+- 💼 [linkedin.com/in/scottooswald](https://www.linkedin.com/in/scottooswald/)
+- 🐙 [github.com/scottoswald](https://github.com/scottoswald)
