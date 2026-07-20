@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 from routes.search import router
+from routes.contact import router as contact_router
 import logging
 
 # Load environment variables from .env file before anything else runs
@@ -35,3 +36,4 @@ app.add_middleware(
 # Register the search router — this adds all routes from routes/search.py
 # include_router wires the APIRouter into the main FastAPI app
 app.include_router(router)
+app.include_router(contact_router)

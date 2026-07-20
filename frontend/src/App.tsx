@@ -169,7 +169,10 @@ function App() {
   return (
     <div className="min-h-screen bg-base-200 flex items-center justify-center p-6 pb-16">
       <div className="w-full max-w-2xl">
-
+        <div className="flex justify-start gap-2 mb-2">
+          <a href="/about" className="btn btn-primary btn-sm">About</a>
+          <a href="/contact" className="btn btn-primary btn-sm">Contact</a>
+        </div>
         <div className="text-center mb-8">
           <h1 className="text-6xl font-black text-primary mb-2">Halfterm</h1>
           <p className="text-base-content/70 text-lg">Find things to do with your kids</p>

@@ -9,9 +9,11 @@ import { createRoot } from 'react-dom/client'
 // Route - defines a single route (a URL and which component to show)
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 
-// Our two pages
+// Our four pages
 import App from './App'
 import Results from './Results'
+import About from './About'
+import Contact from './Contact'
 
 // Global styles
 import './index.css'
@@ -27,6 +29,10 @@ createRoot(document.getElementById('root')!).render(
         <Route path="/" element={<App />} />
         {/* When URL is "/results" show the results page */}
         <Route path="/results" element={<Results />} />
+        {/* When URL is "/about" show the about page */}
+        <Route path="/about" element={<About />} />
+        {/* When URL is "/contact" show the about page */}
+        <Route path="/contact" element={<Contact />} />
       </Routes>
     </BrowserRouter>
   </StrictMode>
