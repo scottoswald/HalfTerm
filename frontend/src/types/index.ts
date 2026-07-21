@@ -13,7 +13,6 @@ export interface Event {
   age_range: string
   cost: string
   is_free: boolean
-  // categories removed — never displayed on cards, was wasting output tokens
   rating: number | null
   keywords: string[]
   description: string
@@ -34,7 +33,6 @@ export interface Venue {
   age_range: string
   cost: string
   is_free: boolean
-  // categories removed — never displayed on cards, was wasting output tokens
   rating: number | null
   keywords: string[]
   description: string
@@ -49,14 +47,10 @@ export interface SearchResults {
   events: Event[]
   venues: Venue[]
   error?: string
-  // True when Claude extended the search beyond the requested radius
   search_extended?: boolean
-  // Friendly message explaining why the search was extended
   search_extended_message?: string
 }
 
-// A selected vibe stores both the display label (shown in the UI)
-// and the full value string (passed to the agent for context)
 export interface SelectedVibe {
   label: string
   value: string
@@ -73,4 +67,7 @@ export interface SearchParams {
   age_range: string
   cost_range: string
   free_text: string | null
+  // New time filters — optional, null means no preference
+  duration: string | null
+  time_of_day: string | null
 }

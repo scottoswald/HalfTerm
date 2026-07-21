@@ -21,7 +21,6 @@ def search_venues(request: SearchRequest):
         resolved_date = resolve_date(request.date)
         vibe_values = [v.value for v in request.vibes]
         logger.info(f"Venues search: {request.activities} in {request.location}")
-
         result = run_venues_search(
             activities=request.activities,
             vibes=vibe_values,
@@ -32,11 +31,12 @@ def search_venues(request: SearchRequest):
             date=resolved_date,
             age_range=request.age_range,
             cost_range=request.cost_range,
-            free_text=request.free_text
+            free_text=request.free_text,
+            duration=request.duration,
+            time_of_day=request.time_of_day,
         )
         logger.info("Venues search complete")
         return result
-
     except Exception as e:
         logger.error(f"Error in venues search: {str(e)}")
         raise HTTPException(status_code=500, detail="Something went wrong. Please try again.")
@@ -50,7 +50,6 @@ def search_events(request: SearchRequest):
         resolved_date = resolve_date(request.date)
         vibe_values = [v.value for v in request.vibes]
         logger.info(f"Events search: {request.activities} in {request.location}")
-
         result = run_events_search(
             activities=request.activities,
             vibes=vibe_values,
@@ -61,11 +60,12 @@ def search_events(request: SearchRequest):
             date=resolved_date,
             age_range=request.age_range,
             cost_range=request.cost_range,
-            free_text=request.free_text
+            free_text=request.free_text,
+            duration=request.duration,
+            time_of_day=request.time_of_day,
         )
         logger.info("Events search complete")
         return result
-
     except Exception as e:
         logger.error(f"Error in events search: {str(e)}")
         raise HTTPException(status_code=500, detail="Something went wrong. Please try again.")
@@ -79,7 +79,6 @@ def search(request: SearchRequest):
         resolved_date = resolve_date(request.date)
         vibe_values = [v.value for v in request.vibes]
         logger.info(f"Combined search: {request.activities} in {request.location}")
-
         result = run_agent(
             activities=request.activities,
             vibes=vibe_values,
@@ -90,19 +89,18 @@ def search(request: SearchRequest):
             date=resolved_date,
             age_range=request.age_range,
             cost_range=request.cost_range,
-            free_text=request.free_text
+            free_text=request.free_text,
+            duration=request.duration,
+            time_of_day=request.time_of_day,
         )
         logger.info("Combined search complete")
         return result
-
     except ValueError as e:
         logger.error(f"ValueError in search: {str(e)}")
         raise HTTPException(status_code=400, detail="Invalid search parameters. Please try again.")
-
     except ConnectionError as e:
         logger.error(f"ConnectionError in search: {str(e)}")
         raise HTTPException(status_code=503, detail="Could not connect to external services. Please try again shortly.")
-
     except Exception as e:
         logger.error(f"Unexpected error in search: {str(e)}")
         raise HTTPException(status_code=500, detail="Something went wrong. Please try again.")

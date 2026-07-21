@@ -74,7 +74,9 @@ const MOCK_SEARCH_PARAMS = {
   vibes: [],
   latitude: null,
   longitude: null,
-  radius_miles: 5
+  radius_miles: 5,
+  duration: null,
+  time_of_day: null
 }
 
 describe('Results component', () => {

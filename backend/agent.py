@@ -289,7 +289,9 @@ def run_venues_search(
     latitude: Optional[float] = None,
     longitude: Optional[float] = None,
     radius_miles: int = 5,
-    free_text: Optional[str] = None
+    free_text: Optional[str] = None,
+    duration: Optional[str] = None,
+    time_of_day: Optional[str] = None
 ) -> dict:
     activities_str = ", ".join(activities) if activities else "family activities"
     strategy = get_strategy(activities)
@@ -321,6 +323,8 @@ def run_venues_search(
 
     vibes_str = f"\nPrioritise results that are: {', '.join(vibes)}" if vibes else ""
     free_text_str = f"\nUser also searched for: \"{free_text}\"" if free_text and free_text.strip() else ""
+    duration_str = f"\nPrefer venues open for at least {duration}." if duration else ""
+    time_str = f"\nUser wants to visit {time_of_day}. Only include venues open during this time." if time_of_day else ""
 
     if latitude is not None and longitude is not None:
         radius_str = f"""
@@ -333,7 +337,7 @@ def run_venues_search(
 
     prompt = f"""Format this Google Places data into JSON for a family activities finder.
 
-Search: {activities_str} in {location}, {date}, ages {age_range}, budget {cost_range}{vibes_str}{free_text_str}{radius_str}
+Search: {activities_str} in {location}, {date}, ages {age_range}, budget {cost_range}{vibes_str}{free_text_str}{duration_str}{time_str}{radius_str}
 
 GOOGLE PLACES DATA:
 {google_data}
@@ -398,7 +402,9 @@ def run_events_search(
     latitude: Optional[float] = None,
     longitude: Optional[float] = None,
     radius_miles: int = 5,
-    free_text: Optional[str] = None
+    free_text: Optional[str] = None,
+    duration: Optional[str] = None,
+    time_of_day: Optional[str] = None
 ) -> dict:
     activities_str = ", ".join(activities) if activities else "family activities"
     strategy = get_strategy(activities)
@@ -460,6 +466,8 @@ def run_events_search(
 
     vibes_str = f"\nPrioritise results that are: {', '.join(vibes)}" if vibes else ""
     free_text_str = f"\nUser also searched for: \"{free_text}\"" if free_text and free_text.strip() else ""
+    duration_str = f"\nPrefer events lasting approximately {duration}." if duration else ""
+    time_str = f"\nUser wants to attend {time_of_day}. Only include events happening during this time." if time_of_day else ""
 
     if latitude is not None and longitude is not None:
         radius_str = f"""
@@ -472,7 +480,7 @@ def run_events_search(
 
     prompt = f"""Format this events data into JSON for a family activities finder.
 
-Search: {activities_str} in {location}, {date}, ages {age_range}, budget {cost_range}{vibes_str}{free_text_str}{radius_str}
+Search: {activities_str} in {location}, {date}, ages {age_range}, budget {cost_range}{vibes_str}{free_text_str}{duration_str}{time_str}{radius_str}
 
 TICKETMASTER DATA:
 {ticketmaster_data}
@@ -544,16 +552,18 @@ def run_agent(
     latitude: Optional[float] = None,
     longitude: Optional[float] = None,
     radius_miles: int = 5,
-    free_text: Optional[str] = None
+    free_text: Optional[str] = None,
+    duration: Optional[str] = None,
+    time_of_day: Optional[str] = None
 ) -> dict:
     with ThreadPoolExecutor(max_workers=2) as executor:
         future_venues = executor.submit(
             run_venues_search, activities, location, date, age_range,
-            cost_range, vibes, latitude, longitude, radius_miles, free_text
+            cost_range, vibes, latitude, longitude, radius_miles, free_text, duration, time_of_day
         )
         future_events = executor.submit(
             run_events_search, activities, location, date, age_range,
-            cost_range, vibes, latitude, longitude, radius_miles, free_text
+            cost_range, vibes, latitude, longitude, radius_miles, free_text, duration, time_of_day
         )
         venues_result = future_venues.result()
         events_result = future_events.result()

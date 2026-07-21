@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { SelectedVibe } from './types'
-import FeedbackBanner from './components/FeedbackBanner'
 
 const ACTIVITIES = [
   { emoji: '🏛️', label: 'Museums', subtitle: 'Heritage, Galleries, Castles', value: 'Museums' },
@@ -42,20 +41,41 @@ const QUICK_PICK_CITIES = [
 
 const RADIUS_OPTIONS = [1, 2, 5, 10, 20]
 
+// Preset date options plus a custom date option
 const DATES = [
   { label: 'Today', value: 'today' },
   { label: 'Tomorrow', value: 'tomorrow' },
   { label: 'This Weekend', value: 'this weekend' },
   { label: 'This Week', value: 'this week' },
   { label: 'Next Week', value: 'next week' },
+  { label: 'Custom date...', value: 'custom' },
+]
+
+// Preset duration options plus a custom option
+const DURATIONS = [
+  { label: 'Any duration', value: 'any' },
+  { label: 'Under 1 hour', value: 'under 1 hour' },
+  { label: '1-2 hours', value: '1-2 hours' },
+  { label: 'Half a day (2-4 hrs)', value: 'half a day (2-4 hours)' },
+  { label: 'Full day (4+ hrs)', value: 'full day (4+ hours)' },
+  { label: 'Custom...', value: 'custom' },
+]
+
+// Preset time of day options plus a custom range option
+const TIMES_OF_DAY = [
+  { label: 'Any time', value: 'any' },
+  { label: 'Morning (before 12pm)', value: 'morning (before 12pm)' },
+  { label: 'Afternoon (12pm-5pm)', value: 'afternoon (12pm-5pm)' },
+  { label: 'Evening (after 5pm)', value: 'evening (after 5pm)' },
+  { label: 'Custom time range...', value: 'custom' },
 ]
 
 const AGE_RANGES = [
+  { label: 'All Ages', value: 'all ages' },
   { label: 'Babies & Toddlers (0-3)', value: '0-3' },
   { label: 'Young Children (4-7)', value: '4-7' },
   { label: 'Older Children (8-12)', value: '8-12' },
   { label: 'Teenagers (13+)', value: '13+' },
-  { label: 'All Ages', value: 'all ages' },
 ]
 
 const COST_RANGES = [
@@ -77,15 +97,30 @@ function App() {
   const [selectedActivities, setSelectedActivities] = useState<string[]>([])
   const [selectedVibes, setSelectedVibes] = useState<SelectedVibe[]>([])
   const [locationText, setLocationText] = useState('')
+  const [quickPickCity, setQuickPickCity] = useState('')
   const [latitude, setLatitude] = useState<number | null>(null)
   const [longitude, setLongitude] = useState<number | null>(null)
   const [radiusMiles, setRadiusMiles] = useState(5)
   const [locationStatus, setLocationStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle')
+
+  // Date state — preset or custom
   const [date, setDate] = useState('today')
+  const [customDate, setCustomDate] = useState('')
+
+  // Duration state — preset or custom
+  const [duration, setDuration] = useState('any')
+  const [customDurationHours, setCustomDurationHours] = useState('')
+  const [customDurationMins, setCustomDurationMins] = useState('')
+
+  // Time of day state — preset or custom
+  const [timeOfDay, setTimeOfDay] = useState('any')
+  const [customTimeFrom, setCustomTimeFrom] = useState('')
+  const [customTimeTo, setCustomTimeTo] = useState('')
+
   const [ageRange, setAgeRange] = useState('all ages')
   const [costRange, setCostRange] = useState('any')
   const [freeText, setFreeText] = useState('')
-  const [quickPickCity, setQuickPickCity] = useState('')
+  const [loading, setLoading] = useState(false)
 
   const toggleActivity = (value: string) => {
     setSelectedActivities(prev =>
@@ -136,9 +171,39 @@ function App() {
   const handleQuickPickCity = (city: string) => {
     setLocationText(city)
     setQuickPickCity(city)
-    setLatitude(null)
-    setLongitude(null)
-    setLocationStatus('idle')
+    setLatitude(null); setLongitude(null); setLocationStatus('idle')
+  }
+
+  // Build the resolved date string to pass to the backend
+  const getResolvedDate = (): string => {
+    if (date === 'custom' && customDate) {
+      // Format custom date as a readable string e.g. "2026-09-22"
+      const d = new Date(customDate)
+      return d.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+    }
+    return date
+  }
+
+  // Build the resolved duration string
+  const getResolvedDuration = (): string => {
+    if (duration === 'any') return ''
+    if (duration === 'custom') {
+      const h = customDurationHours || '0'
+      const m = customDurationMins || '0'
+      if (h === '0' && m === '0') return ''
+      return `${h} hours ${m} minutes`
+    }
+    return duration
+  }
+
+  // Build the resolved time of day string
+  const getResolvedTimeOfDay = (): string => {
+    if (timeOfDay === 'any') return ''
+    if (timeOfDay === 'custom') {
+      if (!customTimeFrom && !customTimeTo) return ''
+      return `between ${customTimeFrom || 'any time'} and ${customTimeTo || 'any time'}`
+    }
+    return timeOfDay
   }
 
   const handleSearch = async () => {
@@ -147,6 +212,8 @@ function App() {
       return
     }
 
+    setLoading(true)
+
     const searchParams = {
       activities: selectedActivities.length > 0 ? selectedActivities : ['family activities'],
       vibes: selectedVibes,
@@ -154,25 +221,29 @@ function App() {
       latitude,
       longitude,
       radius_miles: radiusMiles,
-      date,
+      date: getResolvedDate(),
       age_range: ageRange,
       cost_range: costRange,
       free_text: freeText.trim() || null,
+      duration: getResolvedDuration() || null,
+      time_of_day: getResolvedTimeOfDay() || null,
     }
 
-    // Navigate immediately to results page with loading state
-    // Results page will call both /search/venues and /search/events independently
-    // Venues will appear first (~5-8s), events will follow (~15-25s)
     navigate('/results', { state: { searchParams, loading: true } })
+    setLoading(false)
   }
 
   return (
-    <div className="min-h-screen bg-base-200 flex items-center justify-center p-6 pb-16">
+    <div className="relative min-h-screen bg-base-200 flex items-center justify-center p-6 pb-16">
+
+      {/* About + Contact buttons */}
+      <div className="absolute top-4 left-4 flex gap-2">
+        <a href="/about" className="btn btn-primary btn-sm">About</a>
+        <a href="/contact" className="btn btn-primary btn-sm">Contact</a>
+      </div>
+
       <div className="w-full max-w-2xl">
-        <div className="flex justify-start gap-2 mb-2">
-          <a href="/about" className="btn btn-primary btn-sm">About</a>
-          <a href="/contact" className="btn btn-primary btn-sm">Contact</a>
-        </div>
+
         <div className="text-center mb-8">
           <h1 className="text-6xl font-black text-primary mb-2">Halfterm</h1>
           <p className="text-base-content/70 text-lg">Find things to do with your kids</p>
@@ -245,17 +316,14 @@ function App() {
                 onChange={e => handleLocationChange(e.target.value)} />
               <div className="flex items-center gap-2 mb-3">
                 <span className="text-sm text-base-content/60 shrink-0">Within (miles):</span>
-                  <div className="flex gap-1">
-                    {RADIUS_OPTIONS.map(miles => (
-                      <button
-                        key={miles}
-                        onClick={() => setRadiusMiles(miles)}
-                        className={`btn btn-xs px-1.5 ${radiusMiles === miles ? 'btn-primary' : 'btn-outline'}`}
-                      >
-                        {miles}
-                      </button>
-                    ))}
-                  </div>
+                <div className="flex gap-1">
+                  {RADIUS_OPTIONS.map(miles => (
+                    <button key={miles} onClick={() => setRadiusMiles(miles)}
+                      className={`btn btn-xs px-1.5 ${radiusMiles === miles ? 'btn-primary' : 'btn-outline'}`}>
+                      {miles}
+                    </button>
+                  ))}
+                </div>
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-sm text-base-content/60 shrink-0">Or quick pick a city:</span>
@@ -267,36 +335,93 @@ function App() {
               </div>
             </div>
 
-            {/* When / Who / Budget */}
-            <div className="grid grid-cols-3 gap-2">
+            {/* Row 1 — Time filters: When / How long / What time */}
+            <div className="grid grid-cols-3 gap-3">
+
+              {/* When */}
               <div>
-                <label className="label"><span className="label-text font-semibold">When?</span></label>
-                <select className="select select-bordered w-full" value={date} onChange={e => setDate(e.target.value)}>
+                <label className="label">
+                  <span className="label-text font-semibold text-sm">When?</span>
+                </label>
+                <select className="select select-bordered w-full select-sm" value={date} onChange={e => setDate(e.target.value)}>
                   {DATES.map(d => <option key={d.value} value={d.value}>{d.label}</option>)}
                 </select>
+                {date === 'custom' && (
+                  <input type="date" className="input input-bordered w-full mt-2 input-sm"
+                    value={customDate} onChange={e => setCustomDate(e.target.value)}
+                    min={new Date().toISOString().split('T')[0]}
+                  />
+                )}
               </div>
+
+              {/* How long */}
               <div>
-                <label className="label"><span className="label-text font-semibold text-sm">Ages?</span></label>
-                <select className="select select-bordered w-full" value={ageRange} onChange={e => setAgeRange(e.target.value)}>
+                <label className="label">
+                  <span className="label-text font-semibold text-sm">How long?</span>
+                </label>
+                <select className="select select-bordered w-full select-sm" value={duration} onChange={e => setDuration(e.target.value)}>
+                  {DURATIONS.map(d => <option key={d.value} value={d.value}>{d.label}</option>)}
+                </select>
+                {duration === 'custom' && (
+                  <div className="flex gap-1 mt-2">
+                    <input type="number" className="input input-bordered input-sm w-full"
+                      placeholder="hrs" min="0" max="24"
+                      value={customDurationHours} onChange={e => setCustomDurationHours(e.target.value)} />
+                    <input type="number" className="input input-bordered input-sm w-full"
+                      placeholder="mins" min="0" max="59"
+                      value={customDurationMins} onChange={e => setCustomDurationMins(e.target.value)} />
+                  </div>
+                )}
+              </div>
+
+              {/* What time */}
+              <div>
+                <label className="label">
+                  <span className="label-text font-semibold text-sm">What time?</span>
+                </label>
+                <select className="select select-bordered w-full select-sm" value={timeOfDay} onChange={e => setTimeOfDay(e.target.value)}>
+                  {TIMES_OF_DAY.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                </select>
+                {timeOfDay === 'custom' && (
+                  <div className="flex gap-1 mt-2 items-center">
+                    <input type="time" className="input input-bordered input-sm w-full"
+                      value={customTimeFrom} onChange={e => setCustomTimeFrom(e.target.value)} />
+                    <span className="text-xs text-base-content/50 shrink-0">to</span>
+                    <input type="time" className="input input-bordered input-sm w-full"
+                      value={customTimeTo} onChange={e => setCustomTimeTo(e.target.value)} />
+                  </div>
+                )}
+              </div>
+
+            </div>
+
+            {/* Row 2 — Who / Budget */}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="label">
+                  <span className="label-text font-semibold text-sm">Ages?</span>
+                </label>
+                <select className="select select-bordered w-full select-sm" value={ageRange} onChange={e => setAgeRange(e.target.value)}>
                   {AGE_RANGES.map(a => <option key={a.value} value={a.value}>{a.label}</option>)}
                 </select>
               </div>
               <div>
-                <label className="label"><span className="label-text font-semibold">Budget?</span></label>
-                <select className="select select-bordered w-full" value={costRange} onChange={e => setCostRange(e.target.value)}>
+                <label className="label">
+                  <span className="label-text font-semibold text-sm">Budget?</span>
+                </label>
+                <select className="select select-bordered w-full select-sm" value={costRange} onChange={e => setCostRange(e.target.value)}>
                   {COST_RANGES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
                 </select>
               </div>
             </div>
 
-            <button className="btn btn-primary btn-block btn-lg mt-2" onClick={handleSearch}>
-              Search
+            <button className="btn btn-primary btn-block btn-lg mt-2" onClick={handleSearch} disabled={loading}>
+              {loading ? 'Searching...' : 'Search'}
             </button>
 
           </div>
         </div>
       </div>
-      <FeedbackBanner />
     </div>
   )
 }
