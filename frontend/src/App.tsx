@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { SelectedVibe } from './types'
+import { decodeSearchParams } from './utils/urlParams'
 
 const ACTIVITIES = [
   { emoji: '🏛️', label: 'Museums', subtitle: 'Heritage, Galleries, Castles', value: 'Museums' },
@@ -92,6 +93,17 @@ function looksLikePostcode(value: string): boolean {
 }
 
 function App() {
+
+  // Read URL params on load — allows pre-filling form from a shared link
+  // This runs once on mount; if URL has no params it's a no-op
+  // This actually isn't used yet, but I've kept it for later use
+  const _urlParams = useMemo(() => {
+    if (typeof window !== 'undefined') {
+      return decodeSearchParams(window.location.search)
+    }
+    return null
+  }, [])
+
   const navigate = useNavigate()
 
   const [selectedActivities, setSelectedActivities] = useState<string[]>([])

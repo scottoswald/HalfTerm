@@ -8,6 +8,7 @@ import FilterPanel from './components/FilterPanel'
 import SkeletonCard from './components/SkeletonCard'
 import 'leaflet/dist/leaflet.css'
 import FeedbackBanner from './components/FeedbackBanner'
+import { encodeSearchParams, decodeSearchParams } from './utils/urlParams'
 
 const MapView = lazy(() => import('./components/MapView'))
 
@@ -47,7 +48,11 @@ function Results() {
   const initialSearchParams = location.state?.searchParams as SearchParams | undefined
   const isLoadingMode = location.state?.loading as boolean | undefined
 
-  const [currentSearchParams] = useState<SearchParams | undefined>(initialSearchParams)
+  const [currentSearchParams] = useState<SearchParams | undefined>(() => {
+    if (initialSearchParams) return initialSearchParams
+    const decoded = decodeSearchParams(window.location.search)
+    return decoded || undefined
+  })
 
   const [venues, setVenues] = useState<Venue[]>(initialData?.venues || [])
   const [events, setEvents] = useState<Event[]>(initialData?.events || [])
@@ -77,6 +82,12 @@ function Results() {
 
     // Scroll to top when results load
     window.scrollTo({ top: 0, behavior: 'smooth' })
+
+    // Update URL to reflect current search — enables sharing
+    if (currentSearchParams) {
+      const queryString = encodeSearchParams(currentSearchParams)
+      window.history.replaceState(null, '', `/results?${queryString}`)
+    }
 
     const apiUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000'
     const body = JSON.stringify(currentSearchParams)
