@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { SelectedVibe } from './types'
 import { decodeSearchParams } from './utils/urlParams'
+import LocationAutocomplete from './components/LocationAutocomplete'
 
 const ACTIVITIES = [
   { emoji: '🏛️', label: 'Museums', subtitle: 'Heritage, Galleries, Castles', value: 'Museums' },
@@ -322,10 +323,17 @@ function App() {
                 {locationStatus === 'error' && '❌ Location unavailable — please type below'}
                 {locationStatus === 'idle' && '📍 Use my current location'}
               </button>
-              <input type="text" className="input input-bordered w-full mb-3"
-                placeholder="Type a postcode, town, city or village..."
+              <LocationAutocomplete
                 value={locationText === 'Current location' ? '' : locationText}
-                onChange={e => handleLocationChange(e.target.value)} />
+                onChange={handleLocationChange}
+                onLocationSelect={(location, lat, lng) => {
+                  setLocationText(location)
+                  setLatitude(lat)
+                  setLongitude(lng)
+                  setLocationStatus(lat ? 'success' : 'idle')
+                }}
+              />
+              <div className="mb-3" />
               <div className="flex items-center gap-2 mb-3">
                 <span className="text-sm text-base-content/60 shrink-0">Within (miles):</span>
                 <div className="flex gap-1">
