@@ -81,9 +81,9 @@ function Contact() {
             ) : (
               // Form state
               <>
-                <h2 className="text-xl font-bold mb-1">Send me a message</h2>
+                <h2 className="text-xl font-bold mb-1">Send a message</h2>
                 <p className="text-base-content/60 text-sm mb-6">
-                  Whether you have feedback, a question, or just want to say hello — I'd love to hear from you.
+                  Whether you have feedback, a question, or just want to say hello, I'd love to hear from you.
                 </p>
 
                 {status === 'error' && (
@@ -142,7 +142,7 @@ function Contact() {
                   onClick={handleSubmit}
                   disabled={status === 'sending'}
                 >
-                  {status === 'sending' ? 'Sending...' : 'Send message →'}
+                  {status === 'sending' ? 'Sending...' : 'Send'}
                 </button>
 
               </>
