@@ -46,7 +46,11 @@ function Results() {
 
   const initialData = location.state?.result as SearchResults | undefined
   const initialSearchParams = location.state?.searchParams as SearchParams | undefined
+  
+  // isLoadingMode is true either when navigating from the search form (router state)
+  // OR when loading a shared URL directly (no router state but URL params exist)
   const isLoadingMode = location.state?.loading as boolean | undefined
+    ?? (!!window.location.search && !location.state?.result)
 
   const [currentSearchParams] = useState<SearchParams | undefined>(() => {
     if (initialSearchParams) return initialSearchParams
