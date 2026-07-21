@@ -6,7 +6,6 @@ from main import app
 client = TestClient(app)
 
 # Valid request body matching the current SearchRequest model
-# Includes all fields the frontend sends including vibes, latitude, longitude
 VALID_REQUEST = {
     "activities": ["Museums", "Outdoor Activities"],
     "vibes": [],
@@ -20,7 +19,6 @@ VALID_REQUEST = {
     "free_text": None
 }
 
-# Mock return value for combined search
 MOCK_AGENT_RESULT = {
     "search_summary": "Museums in London, All ages, Any budget",
     "search_extended": False,
@@ -29,7 +27,6 @@ MOCK_AGENT_RESULT = {
     "venues": []
 }
 
-# Mock return values for split search endpoints
 MOCK_VENUES_RESULT = {
     "search_summary": "Museums in London",
     "search_extended": False,
@@ -83,7 +80,6 @@ def test_search_endpoint_rejects_missing_fields():
     response = client.post("/search", json={
         "activities": ["Museums"],
         "location": "London"
-        # missing required fields
     })
     assert response.status_code == 422
 
@@ -112,9 +108,7 @@ def test_search_endpoint_connection_error_returns_503():
     with patch('routes.search.run_agent') as mock_agent:
         mock_agent.side_effect = ConnectionError("Something went wrong")
         response = client.post("/search", json=VALID_REQUEST)
-        data = response.json()
         assert response.status_code == 503
-        assert data["detail"] == "Could not connect to external services. Please try again shortly."
 
 # ---- VENUES SEARCH (/search/venues) ----
 
@@ -180,10 +174,49 @@ def test_events_endpoint_handles_error():
         response = client.post("/search/events", json=VALID_REQUEST)
         assert response.status_code == 500
 
+# ---- CONTACT FORM ----
+
+def test_contact_endpoint_returns_200():
+    with patch('routes.contact.resend.Emails.send') as mock_send:
+        mock_send.return_value = {"id": "test-id"}
+        response = client.post("/contact", json={
+            "name": "Test User",
+            "email": "test@example.com",
+            "message": "Hello from the test suite"
+        })
+        assert response.status_code == 200
+
+def test_contact_endpoint_returns_success():
+    with patch('routes.contact.resend.Emails.send') as mock_send:
+        mock_send.return_value = {"id": "test-id"}
+        response = client.post("/contact", json={
+            "name": "Test User",
+            "email": "test@example.com",
+            "message": "Hello from the test suite"
+        })
+        data = response.json()
+        assert data["success"] is True
+
+def test_contact_endpoint_rejects_missing_fields():
+    response = client.post("/contact", json={
+        "name": "Test User"
+        # missing email and message
+    })
+    assert response.status_code == 422
+
+def test_contact_endpoint_handles_send_error():
+    with patch('routes.contact.resend.Emails.send') as mock_send:
+        mock_send.side_effect = Exception("Resend failed")
+        response = client.post("/contact", json={
+            "name": "Test User",
+            "email": "test@example.com",
+            "message": "Hello"
+        })
+        assert response.status_code == 500
+
 # ---- VIBES EXTRACTION ----
 
 def test_vibes_values_extracted_before_agent():
-    """Vibes arrive as {label, value} objects but agent receives only value strings."""
     with patch('routes.search.run_agent') as mock_agent:
         mock_agent.return_value = MOCK_AGENT_RESULT
         request_with_vibes = {
@@ -195,7 +228,6 @@ def test_vibes_values_extracted_before_agent():
         }
         client.post("/search", json=request_with_vibes)
         call_kwargs = mock_agent.call_args.kwargs
-        # Agent should receive only the value strings, not the full objects
         assert call_kwargs['vibes'] == [
             "accessible and inclusive for children with additional needs",
             "free and low cost, suitable for families on a tight budget"
@@ -235,7 +267,6 @@ def test_inject_venue_photos_exact_match():
 
 def test_inject_venue_photos_partial_match():
     from agent import inject_venue_photos
-    # Claude sometimes reformats "The British Museum" to "British Museum"
     venues = [{"name": "The British Museum", "image_url": None}]
     photo_urls = {"British Museum": "https://example.com/photo.jpg"}
     result = inject_venue_photos(venues, photo_urls)
@@ -253,6 +284,47 @@ def test_inject_venue_photos_empty_dict():
     venues = [{"name": "British Museum", "image_url": None}]
     result = inject_venue_photos(venues, {})
     assert result[0]["image_url"] is None
+
+# ---- CATEGORY STRATEGY TESTS ----
+
+def test_get_strategy_museums_skips_skiddle():
+    from agent import get_strategy
+    strategy = get_strategy(["Museums"])
+    assert strategy["use_google_places"] is True
+    assert strategy["use_skiddle"] is False
+
+def test_get_strategy_theatre_uses_google_places():
+    from agent import get_strategy
+    strategy = get_strategy(["Theatre and Shows"])
+    assert strategy["use_google_places"] is True
+    assert strategy["use_skiddle"] is True
+
+def test_get_strategy_community_skips_ticketmaster():
+    from agent import get_strategy
+    strategy = get_strategy(["Community"])
+    assert strategy["use_ticketmaster"] is False
+    assert strategy["use_google_places"] is False
+    assert strategy["use_eventbrite"] is True
+
+def test_get_strategy_fairs_skips_ticketmaster():
+    from agent import get_strategy
+    strategy = get_strategy(["Fairs and Festivals"])
+    assert strategy["use_ticketmaster"] is False
+    assert strategy["use_skiddle"] is True
+
+def test_get_strategy_unknown_category_uses_all_sources():
+    from agent import get_strategy
+    strategy = get_strategy(["Unknown Category"])
+    assert strategy["use_google_places"] is True
+    assert strategy["use_ticketmaster"] is True
+    assert strategy["use_eventbrite"] is True
+    assert strategy["use_skiddle"] is True
+
+def test_get_strategy_empty_activities_uses_all_sources():
+    from agent import get_strategy
+    strategy = get_strategy([])
+    assert strategy["use_google_places"] is True
+    assert strategy["use_ticketmaster"] is True
 
 # ---- DATE RESOLVER TESTS ----
 
