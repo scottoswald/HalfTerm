@@ -34,13 +34,13 @@ describe('Contact page', () => {
 
   it('renders the send button', () => {
     render(<MemoryRouter><Contact /></MemoryRouter>)
-    expect(screen.getByText('Send message →')).toBeInTheDocument()
+    expect(screen.getByText('Send')).toBeInTheDocument()
   })
 
   it('shows alert when submitted with empty fields', async () => {
     const alertMock = vi.spyOn(window, 'alert').mockImplementation(() => {})
     render(<MemoryRouter><Contact /></MemoryRouter>)
-    fireEvent.click(screen.getByText('Send message →'))
+    fireEvent.click(screen.getByText('Send'))
     expect(alertMock).toHaveBeenCalledWith('Please fill in all fields before sending.')
     alertMock.mockRestore()
   })
