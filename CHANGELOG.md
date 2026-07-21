@@ -3,6 +3,36 @@
 All notable changes to Halfterm will be documented in this file.
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [3.5.1] - 2026-07-21
+
+### Added
+- Google Places Autocomplete for location input with session token management
+- URL parameters for shareable searches (/results?activities=Museums&location=London...)
+- Shared URLs now trigger search when loaded directly in a new tab
+- Duration filter (under 1 hour, 1-2 hours, half day, full day, custom)
+- Time of day filter (morning, afternoon, evening, custom range)
+- Custom date picker for specific future dates
+- About page with project description, bio, tech stack and links
+- Contact page with email form powered by Resend
+- About and Contact buttons on search and results pages
+- Feedback form button on About page
+- LocationAutocomplete test suite (7 tests)
+- Updated App tests for new filters (18 tests)
+
+### Changed
+- Location input replaced with Google Places Autocomplete
+- When/Ages/Budget row split into two rows — time filters separate from who/budget
+- Vibe buttons now use btn-primary for better selected state contrast
+- "Update search" renamed to "New search"
+- Results scroll to top on load
+- Google Places now returns up to 8 results (was 5)
+
+### Fixed
+- Shared URL search params now correctly trigger search in new tab
+- Radius false positive bug fixed
+- Contact email kept private via environment variable
+- _urlParams unused variable removed — was blocking Railway deployment
+
 ## [3.5.0] - 2026-07-20
 
 ### Added
