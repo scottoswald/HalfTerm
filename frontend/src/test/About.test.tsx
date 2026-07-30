@@ -1,7 +1,11 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import About from '../About'
+
+vi.mock('../components/Navbar', () => ({
+  default: () => <nav data-testid="navbar" />
+}))
 
 describe('About page', () => {
 

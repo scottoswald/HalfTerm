@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import Navbar from './components/Navbar'
 
 // ---- CONTACT PAGE ----
 // Allows users to send Scott a message via the Resend email API.
@@ -41,7 +42,8 @@ function Contact() {
   }
 
   return (
-    <div className="min-h-screen bg-base-200">
+    <div className="min-h-screen bg-base-200 pt-14">
+      <Navbar />
       <div className="max-w-xl mx-auto px-4 py-12">
 
         {/* Header */}

@@ -9,6 +9,7 @@ import SkeletonCard from './components/SkeletonCard'
 import 'leaflet/dist/leaflet.css'
 import FeedbackBanner from './components/FeedbackBanner'
 import { encodeSearchParams, decodeSearchParams } from './utils/urlParams'
+import Navbar from './components/Navbar'
 
 const MapView = lazy(() => import('./components/MapView'))
 
@@ -209,12 +210,9 @@ function Results() {
   const showVenues = activeTab === 'all' || activeTab === 'venues'
 
   return (
-    <div className="min-h-screen bg-base-200 pb-16">
+    <div className="min-h-screen bg-base-200 pb-16 pt-14">
+      <Navbar />
       <div className="max-w-5xl mx-auto px-4 py-6">
-        <div className="flex justify-start gap-2 mb-2">
-          <a href="/about" className="btn btn-primary btn-sm">About</a>
-          <a href="/contact" className="btn btn-primary btn-sm">Contact</a>
-        </div>
         <div className="text-center mb-6">
           <h1 className="text-4xl font-black text-primary mb-1">Halfterm</h1>
           <h2 className="text-xl font-semibold text-base-content mb-1">

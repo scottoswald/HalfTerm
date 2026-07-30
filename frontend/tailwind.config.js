@@ -1,53 +1,73 @@
 /** @type {import('tailwindcss').Config} */
-module.exports = {
-  // content tells Tailwind which files to scan for class names
-  // Any class not found in these files gets removed from the final CSS bundle
-  // This keeps the production CSS file small and lean
+export default {
   content: [
-    "./index.html",                     // The main HTML entry point
-    "./src/**/*.{js,ts,jsx,tsx}",       // All JS/TS/JSX/TSX files inside src
+    "./index.html",
+    "./src/**/*.{js,ts,jsx,tsx}",
   ],
-
-  plugins: [
-    // daisyui — adds pre-built component classes on top of Tailwind
-    // e.g. btn, card, select, badge etc
-    // Uses CommonJS require() because Tailwind v3 config doesn't support ES module imports
-    require('daisyui'),
-
-    // @tailwindcss/typography — adds the 'prose' class
-    // prose automatically styles markdown rendered as HTML
-    // It handles headings, paragraphs, lists, tables, links etc
-    // We use it on the Results page to style the agent's markdown response
-    require('@tailwindcss/typography'),
-  ],
-
+  theme: {
+    extend: {
+      colors: {
+        // Halfterm Mondrian palette
+        'ht-orange': '#E8500A',
+        'ht-yellow': '#F5C800',
+        'ht-blue': '#1A4FBF',
+        'ht-red': '#D42B2B',
+        'ht-green': '#2A8C4A',
+        'ht-black': '#111111',
+        'ht-grey': '#F0F0F0',
+      },
+    },
+  },
+  plugins: [require("daisyui")],
   daisyui: {
     themes: [
       {
-        // Custom theme called 'halfterm'
-        // Daisy UI reads these colour values and applies them to all its components
-        // So btn-primary automatically uses our orange, base-200 sets the page background etc
-        halfterm: {
-          // primary — main brand colour, used for buttons, active states, accents
-          "primary": "#ff6b35",
-
-          // primary-content — text colour rendered ON TOP of primary backgrounds
-          // White text on orange buttons
+        light: {
+          "primary": "#E8500A",           // Halfterm orange
           "primary-content": "#ffffff",
-
-          // base-100 — main surface/card background colour
-          "base-100": "#ffffff",
-
-          // base-200 — slightly darker background, used behind cards to create depth
-          "base-200": "#f9f6f1",
-
-          // base-content — main body text colour throughout the app
-          "base-content": "#1a1a1a",
-
-          // neutral — used for secondary UI elements and borders
-          "neutral": "#444444",
+          "secondary": "#1A4FBF",          // Mondrian blue
+          "secondary-content": "#ffffff",
+          "accent": "#F5C800",             // Mondrian yellow
+          "accent-content": "#111111",
+          "neutral": "#111111",
+          "neutral-content": "#ffffff",
+          "base-100": "#ffffff",           // Card surface
+          "base-200": "#F0F0F0",           // Page background — light grey
+          "base-300": "#E0E0E0",           // Borders
+          "base-content": "#111111",       // Text
+          "info": "#1A4FBF",
+          "info-content": "#ffffff",
+          "success": "#2A8C4A",            // Green for free/success
+          "success-content": "#ffffff",
+          "warning": "#F5C800",
+          "warning-content": "#111111",
+          "error": "#D42B2B",
+          "error-content": "#ffffff",
+        },
+        dark: {
+          "primary": "#E8500A",
+          "primary-content": "#ffffff",
+          "secondary": "#4A7FEF",          // Lighter blue for dark mode
+          "secondary-content": "#ffffff",
+          "accent": "#F5C800",
+          "accent-content": "#111111",
+          "neutral": "#E0E0E0",
+          "neutral-content": "#111111",
+          "base-100": "#242424",           // Card surface dark
+          "base-200": "#1A1A1A",           // Page background dark
+          "base-300": "#333333",           // Borders dark
+          "base-content": "#F0F0F0",       // Text dark
+          "info": "#4A7FEF",
+          "info-content": "#ffffff",
+          "success": "#3AB55E",            // Lighter green for dark
+          "success-content": "#ffffff",
+          "warning": "#F5C800",
+          "warning-content": "#111111",
+          "error": "#E84444",
+          "error-content": "#ffffff",
         },
       },
     ],
   },
 }
+ 

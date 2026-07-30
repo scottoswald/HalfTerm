@@ -3,6 +3,10 @@ import { render, screen, fireEvent } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import Contact from '../Contact'
 
+vi.mock('../components/Navbar', () => ({
+  default: () => <nav data-testid="navbar" />
+}))
+
 vi.stubGlobal('fetch', vi.fn())
 
 describe('Contact page', () => {

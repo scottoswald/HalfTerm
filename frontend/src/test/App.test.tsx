@@ -4,6 +4,10 @@ import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import App from '../App'
 
+vi.mock('../components/Navbar', () => ({
+  default: () => <nav data-testid="navbar" />
+}))
+
 // Mock LocationAutocomplete — avoids needing a real Google Places API key in tests
 vi.mock('../components/LocationAutocomplete', () => ({
   default: ({ value, onChange }: { value: string; onChange: (v: string) => void }) => (
@@ -39,10 +43,9 @@ describe('App', () => {
     expect(screen.getByText('Find things to do with your kids')).toBeInTheDocument()
   })
 
-  it('renders About and Contact buttons', () => {
+  it('renders the navbar', () => {
     render(<MemoryRouter><App /></MemoryRouter>)
-    expect(screen.getByText('About')).toBeInTheDocument()
-    expect(screen.getByText('Contact')).toBeInTheDocument()
+    expect(screen.getByTestId('navbar')).toBeInTheDocument()
   })
 
   it('renders activity grid with all 16 activities', () => {

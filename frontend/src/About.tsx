@@ -11,12 +11,14 @@
 // Links: use <a href="url" target="_blank" rel="noopener noreferrer">link text</a>
 
 import { useNavigate } from 'react-router-dom'
+import Navbar from './components/Navbar'
 
 function About() {
   const navigate = useNavigate()
 
   return (
-    <div className="min-h-screen bg-base-200">
+    <div className="min-h-screen bg-base-200 pt-14">
+      <Navbar />
       <div className="max-w-2xl mx-auto px-4 py-12">
 
         {/* Header */}

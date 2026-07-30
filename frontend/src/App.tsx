@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { SelectedVibe } from './types'
 import LocationAutocomplete from './components/LocationAutocomplete'
+import Navbar from './components/Navbar'
+import FeedbackBanner from './components/FeedbackBanner'
 
 const ACTIVITIES = [
   { emoji: '🏛️', label: 'Museums', subtitle: 'Heritage, Galleries, Castles', value: 'Museums' },
@@ -90,6 +92,25 @@ const COST_RANGES = [
 
 function looksLikePostcode(value: string): boolean {
   return /^[A-Z]{1,2}\d[A-Z\d]?\s*\d[A-Z]{2}$/i.test(value.trim())
+}
+
+const ACTIVITY_COLORS: Record<string, string> = {
+  'Museums': 'border-t-[#1A4FBF]',
+  'Attractions': 'border-t-[#D42B2B]',
+  'Outdoors': 'border-t-[#2A8C4A]',
+  'Sports': 'border-t-[#F5C800]',
+  'Theatre and Shows': 'border-t-[#D42B2B]',
+  'Arts and Crafts': 'border-t-[#2A8C4A]',
+  'Science and Technology': 'border-t-[#F5C800]',
+  'Animals': 'border-t-[#1A4FBF]',
+  'Play and Explore': 'border-t-[#2A8C4A]',
+  'Thrills and Challenges': 'border-t-[#F5C800]',
+  'Fairs and Festivals': 'border-t-[#1A4FBF]',
+  'Swimming': 'border-t-[#D42B2B]',
+  'Music': 'border-t-[#F5C800]',
+  'Gaming': 'border-t-[#1A4FBF]',
+  'Learning': 'border-t-[#D42B2B]',
+  'Community': 'border-t-[#2A8C4A]',
 }
 
 function App() {
@@ -236,14 +257,10 @@ function App() {
   }
 
   return (
-    <div className="relative min-h-screen bg-base-200 flex items-center justify-center p-6 pb-16">
+    <div className="min-h-screen bg-base-200 pt-14">
+      <Navbar />
 
-      {/* About + Contact buttons */}
-      <div className="absolute top-4 left-4 flex gap-2">
-        <a href="/about" className="btn btn-primary btn-sm">About</a>
-        <a href="/contact" className="btn btn-primary btn-sm">Contact</a>
-      </div>
-
+      <div className="flex items-center justify-center p-6 pb-16 min-h-[calc(100vh-3.5rem)]">
       <div className="w-full max-w-2xl">
 
         <div className="text-center mb-8">
@@ -263,7 +280,7 @@ function App() {
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                 {ACTIVITIES.map(activity => (
                   <button key={activity.value} onClick={() => toggleActivity(activity.value)}
-                    className={`btn btn-sm flex-col h-auto py-3 gap-0.5 ${selectedActivities.includes(activity.value) ? 'btn-primary' : 'btn-outline'}`}>
+                    className={`btn btn-sm flex-col h-auto py-3 gap-0.5 border-t-4 ${selectedActivities.includes(activity.value) ? 'btn-primary border-t-[#111111]' : `btn-outline ${ACTIVITY_COLORS[activity.value] || 'border-t-[#E8500A]'}`}`}>
                     <span className="text-xl">{activity.emoji}</span>
                     <span className="text-xs font-semibold">{activity.label}</span>
                     <span className="text-[9px] opacity-60 leading-tight text-center">{activity.subtitle}</span>
@@ -292,7 +309,7 @@ function App() {
               <div className="grid grid-cols-3 gap-2">
                 {EXPERIENCE_VIBES.map(vibe => (
                   <button key={vibe.value} onClick={() => toggleVibe(vibe)}
-                    className={`btn btn-sm flex-col h-auto py-2 gap-0.5 ${selectedVibes.some(v => v.value === vibe.value) ? 'btn-primary' : 'btn-ghost border border-base-300'}`}>
+                    className={`btn btn-sm flex-col h-auto py-2 gap-0.5 ${selectedVibes.some(v => v.value === vibe.value) ? 'bg-[#F5C800] text-black border-2 border-[#111111]' : 'btn-ghost border border-base-300'}`}>
                     <span className="text-lg">{vibe.emoji}</span>
                     <span className="text-xs font-medium">{vibe.label}</span>
                   </button>
@@ -431,6 +448,8 @@ function App() {
           </div>
         </div>
       </div>
+      </div>
+      <FeedbackBanner />
     </div>
   )
 }

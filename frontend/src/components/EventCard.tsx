@@ -3,106 +3,134 @@ import type { Event } from '../types'
 import StarRating from './StarRating'
 import { getInitials } from './cardUtils'
 
-// ---- EVENT CARD COMPONENT ----
-// Renders a single event card with expandable description
-// Events are ticketed, time-specific activities e.g. workshops, shows, performances
-// Distinct from venues which are permanent places families can visit
-
 interface EventCardProps {
   event: Event
 }
 
 function EventCard({ event }: EventCardProps) {
   const [expanded, setExpanded] = useState(false)
-  const [imageError, setImageError] = useState(false)
 
-  // Show initials fallback if no image URL or image fails to load
-  const showImage = event.image_url && !imageError
+  const costBadge = () => {
+    if (event.is_free || event.cost?.toLowerCase() === 'free') {
+      return (
+        <span className="badge text-xs font-bold px-3 py-2 bg-success text-success-content border-0">
+          Free
+        </span>
+      )
+    }
+    return (
+      <span className="badge badge-outline text-xs font-semibold px-3 py-2">
+        {event.cost}
+      </span>
+    )
+  }
 
   return (
-    <div className="card bg-base-100 shadow-md border border-base-200">
-      <div className="card-body gap-3">
+    <div className="card bg-base-100 shadow-sm border border-base-300 border-l-[6px] border-l-[#D42B2B] overflow-hidden">
+      <div className="card-body p-5">
 
-        {/* Card header — name, distance badge and cost badge */}
-        <div className="flex justify-between items-start gap-2">
-          <h2 className="card-title text-lg leading-tight">{event.name}</h2>
-          <div className="flex flex-col items-end gap-1 shrink-0">
-            {event.distance_miles !== undefined && (
-              <span className="badge badge-outline badge-lg">
-                {event.distance_miles < 0.1 ? 'Nearby' : `${event.distance_miles.toFixed(1)} mi`}
-              </span>
-            )}
-            <span className={`badge badge-lg ${event.is_free ? 'badge-success' : 'badge-ghost'}`}>
-              {event.cost}
-            </span>
-          </div>
+        {/* Header */}
+        <div className="flex items-start justify-between gap-3 mb-3">
+          <h3 className="font-bold text-lg leading-tight">{event.name}</h3>
+          {costBadge()}
         </div>
 
-        {/* Image — real photo if available, initials fallback if not */}
-        {showImage ? (
-          <img
-            src={event.image_url!}
-            alt={event.name}
-            className="w-full h-40 object-cover rounded-xl"
-            onError={() => setImageError(true)}
-          />
+        {/* Image */}
+        {event.image_url ? (
+          <div className="w-full h-48 rounded-lg overflow-hidden mb-3 bg-base-200">
+            <img
+              src={event.image_url}
+              alt={event.name}
+              className="w-full h-full object-cover"
+              onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
+            />
+          </div>
         ) : (
-          <div className="w-full h-40 bg-base-200 rounded-xl flex items-center justify-center">
-            <span className="text-3xl font-black text-base-content/20">
-              {getInitials(event.name)}
-            </span>
+          <div className="w-full h-48 rounded-lg mb-3 bg-base-200 flex items-center justify-center">
+            <span className="text-4xl font-black text-base-content/20">{getInitials(event.name)}</span>
           </div>
         )}
 
-        {/* Key details grid */}
-        <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
-          <div className="flex items-start gap-1">
-            <span>📍</span>
-            <span className="text-base-content/70">{event.location}</span>
-          </div>
-          <div className="flex items-start gap-1">
-            <span>📅</span>
-            <span className="text-base-content/70">{event.date}</span>
-          </div>
-          <div className="flex items-start gap-1">
-            <span>👶</span>
-            <span className="text-base-content/70">{event.age_range}</span>
-          </div>
-          <div className="flex items-start gap-1">
-            <span>🕐</span>
-            <span className="text-base-content/70">{event.time}</span>
-          </div>
+        {/* Meta */}
+        <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-base-content/70 mb-3">
+          {event.location && (
+            <span className="flex items-center gap-1">
+              <span>📍</span> {event.location}
+            </span>
+          )}
+          {event.date && (
+            <span className="flex items-center gap-1">
+              <span>📅</span> {event.date}
+            </span>
+          )}
+          {event.time && (
+            <span className="flex items-center gap-1">
+              <span>🕐</span> {event.time}
+            </span>
+          )}
         </div>
 
-        {event.rating && <StarRating rating={event.rating} />}
+        {/* Age, distance and rating */}
+        <div className="flex items-center gap-3 mb-3">
+          {event.age_range && (
+            <span className="text-sm flex items-center gap-1">
+              <span>👶</span> {event.age_range}
+            </span>
+          )}
+          {event.distance_miles !== undefined && (
+            <span className="badge badge-outline text-xs">
+              {event.distance_miles.toFixed(1)} mi
+            </span>
+          )}
+          {event.rating && <StarRating rating={event.rating} />}
+        </div>
 
-        {event.keywords.length > 0 && (
-          <div className="flex flex-wrap gap-1">
-            {event.keywords.map(keyword => (
-              <span key={keyword} className="badge badge-outline badge-sm">{keyword}</span>
+        {/* Keywords */}
+        {event.keywords && event.keywords.length > 0 && (
+          <div className="flex flex-wrap gap-1 mb-3">
+            {event.keywords.map((kw, i) => (
+              <span key={i} className="badge badge-outline badge-sm text-xs">{kw}</span>
             ))}
           </div>
         )}
 
-        <p className="text-sm text-base-content/80">
-          {expanded ? event.expanded_description : event.description}
-        </p>
+        {/* Description */}
+        <p className="text-sm text-base-content/80 mb-1">{event.description}</p>
 
-        <button
-          onClick={() => setExpanded(!expanded)}
-          className="btn btn-ghost btn-sm self-center"
-          aria-label={expanded ? 'Show less' : 'Show more'}
-        >
-          {expanded ? '▲ Show less' : '▼ Show more'}
-        </button>
+        {/* Expanded description */}
+        {expanded && event.expanded_description && (
+          <p className="text-sm text-base-content/70 mt-2 mb-1">{event.expanded_description}</p>
+        )}
 
-        {/* Action buttons — open in new tab so user doesn't lose results */}
+        {/* Show more toggle */}
+        {event.expanded_description && (
+          <button
+            className="text-sm text-primary font-semibold mt-1 mb-3 text-left hover:underline"
+            onClick={() => setExpanded(!expanded)}
+          >
+            {expanded ? '▲ Show less' : '▼ Show more'}
+          </button>
+        )}
+
+        {/* Action buttons */}
         <div className="flex gap-2 mt-1">
-          <a href={event.directions_url} target="_blank" rel="noopener noreferrer" className="btn btn-outline btn-sm flex-1">
-            📍 Directions
-          </a>
+          {event.directions_url && (
+            <a
+              href={event.directions_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn btn-outline btn-sm flex-1"
+            >
+              📍 Directions
+            </a>
+          )}
           {event.booking_url && (
-            <a href={event.booking_url} target="_blank" rel="noopener noreferrer" className="btn btn-primary btn-sm flex-1">
+            <a
+              href={event.booking_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn btn-primary btn-sm flex-1"
+            >
               Book Now →
             </a>
           )}
