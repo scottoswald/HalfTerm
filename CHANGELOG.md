@@ -3,6 +3,23 @@
 All notable changes to Halfterm will be documented in this file.
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [4.0.0] - 2026-07-30
+
+### Added
+- Navbar component — fixed top bar with Halfterm logo (links home), About/Contact links, dark mode toggle
+- Dark mode — full theme toggle saved to localStorage, dark/light themes defined in Tailwind config
+- Mondrian-inspired colour palette — orange, blue, red, green, yellow, black on light grey background
+
+### Changed
+- Activity category buttons now have bold coloured top borders (blue, red, green, yellow cycling through categories)
+- Venue cards now have blue left border accent
+- Event cards now have red left border accent
+- Free badge now uses green (success colour)
+- Background changed from beige to light grey (#F0F0F0)
+- About/Contact buttons moved from absolute positioned to Navbar
+- FeedbackBanner restored to search page
+- All pages updated to use Navbar and pt-14 padding
+
 ## [3.5.1] - 2026-07-21
 
 ### Added
