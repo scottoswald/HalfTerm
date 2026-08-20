@@ -3,6 +3,22 @@
 All notable changes to Halfterm will be documented in this file.
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [4.1.0] - 2026-08-02
+
+### Added
+- LangSmith observability — tracing all Claude calls and API tool invocations (EU region)
+- MAINTENANCE.md — weekly, monthly and quarterly maintenance checklist
+- AWS_RESEARCH.md — research spike documenting AWS migration plan for v4.2.0
+
+### Changed
+- User-facing error messages no longer expose technical API names (Ticketmaster, Eventbrite etc)
+- Extended search alert now shows plain English: "We couldn't find everything in your area"
+
+### Infrastructure
+- LangSmith EU endpoint configured (https://eu.api.smith.langchain.com)
+- Both LANGCHAIN_ and LANGSMITH_ prefixed environment variables set for compatibility
+- Running costs reviewed — approximately £8-12/month on Railway
+
 ## [4.0.0] - 2026-07-30
 
 ### Added
