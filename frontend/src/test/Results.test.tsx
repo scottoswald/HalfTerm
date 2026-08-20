@@ -157,7 +157,7 @@ describe('Results component', () => {
         search_extended_message: "We couldn't find enough results within 5 miles so we've included some nearby options too."
       }
     })
-    expect(screen.getByText(/couldn't find enough results/)).toBeInTheDocument()
+    expect(screen.getByText(/We couldn't find everything in your area/)).toBeInTheDocument()
   })
 
   it('renders the error state when error is set and no results', () => {

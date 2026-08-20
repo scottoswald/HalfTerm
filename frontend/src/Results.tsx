@@ -224,7 +224,7 @@ function Results() {
 
         {searchExtended && searchExtendedMessage && (
           <div className="alert alert-info mb-4 text-sm">
-            <span>ℹ️ {searchExtendedMessage}</span>
+            <span>ℹ️ We couldn't find everything in your area, but here's what we did find...</span>
           </div>
         )}
 
